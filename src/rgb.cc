@@ -1,5 +1,4 @@
 #include "rgb.h"
-#include <vector>
 
 RGB::RGB(const unsigned char &red, const unsigned char &green, const unsigned char &blue, const unsigned char &alpha) {
     this->red = red;
@@ -30,4 +29,5 @@ const RGB bright_yellow(255, 255, 0);
 const RGB bright_white(255, 255, 255);
 const RGB alpha(0, 0, 0, 0);
 
-const std::vector<const RGB *> palette = {&black, &blue, &red, &purple, &green, &cyan, &yellow, &white, &bright_black, &bright_blue, &bright_red, &bright_purple, &bright_green, &bright_cyan, &bright_yellow, &bright_white};
+const std::vector<RGB> palette = {black, blue, red, purple, green, cyan, yellow, white, bright_black, bright_blue, bright_red, bright_purple, bright_green, bright_cyan, bright_yellow, bright_white};
+

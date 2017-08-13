@@ -1,17 +1,10 @@
-#include "chaos.h"
 #include "gfx.h"
-#include "rgb.h"
-#include <SDL2/SDL.h>
-#include <string>
-#include <vector>
+#include "sdl.h"
+#include <cstdlib>
 #include <map>
 #include <bitset>
 #include <cmath>
-#include "wizard.h"
 #include <iostream>
-
-#define WINDOW_WIDTH 256 * 3
-#define WINDOW_HEIGHT 192 * 3
 
 SDL_Window window;
 
@@ -139,7 +132,7 @@ struct ScreenTexture : public Texture {
                 auto paper = (attribute & 0b01111000) >> 3;
                 if(paper & 0b00001000)
                     pen += 0b00001000;
-                pen_and_paper[x][y] = {palette[pen], palette[paper]};
+                pen_and_paper[x][y] = {&palette[pen], &palette[paper]};
             }
         }
         for(int y = 0; y < screen_bytes.size(); ++y) {
@@ -161,11 +154,6 @@ SDL_Rect src_rect;
 SDL_Rect dst_rect;
 
 namespace sdl {
-    void clear() {
-        SDL_SetRenderTarget(window.renderer, window.buffer);
-        SDL_RenderClear(window.renderer);
-    }
-
     void draw(const Texture &texture, const int &x, const int &y, const int &sx, const int &sy, const int &width, const int &height) {
         src_rect.x = sx;
         src_rect.y = sy;
@@ -187,98 +175,7 @@ namespace sdl {
         SDL_SetRenderTarget(window.renderer, window.buffer);
         SDL_RenderCopy(window.renderer, texture.texture, NULL, &dst_rect);
     }
-
-    void refresh() {
-        SDL_SetRenderTarget(window.renderer, NULL);
-        SDL_RenderClear(window.renderer);
-        SDL_RenderCopy(window.renderer, window.buffer, NULL, NULL);
-        SDL_RenderPresent(window.renderer);
-    }
 }
-
-const std::string corner_bytes = "ffffffffeaaff55bd087e42bd087ea0bd057e10bd427e10bdaaff557ffffffff";
-const std::string edge_bytes = "d057e40bd027ea0bd057e40bd027ea0bff00ff11aa44551188aa225588ff00ff";
-
-std::map<int, std::map<int, std::unique_ptr<SpriteTexture>>> corner_textures;
-std::map<int, std::map<int, std::unique_ptr<SpriteTexture>>> edge_textures;
-
-void draw_border(const RGB &fg, const RGB &bg) {
-    const auto fg_index = fg.get_24_bit_index(); 
-    const auto bg_index = bg.get_24_bit_index(); 
-    if(!corner_textures[fg_index][bg_index])
-        corner_textures[fg_index][bg_index] = std::unique_ptr<SpriteTexture>(new SpriteTexture(corner_bytes, bg, fg));
-    if(!edge_textures[fg_index][bg_index])
-        edge_textures[fg_index][bg_index] = std::unique_ptr<SpriteTexture>(new SpriteTexture(edge_bytes, bg, fg));
-    sdl::draw(*corner_textures[fg_index][bg_index], 0, 0, 0, 0, 8, 8);
-    sdl::draw(*corner_textures[fg_index][bg_index], 31 * 8, 0, 8, 0, 8, 8);
-    sdl::draw(*corner_textures[fg_index][bg_index], 0, 21 * 8, 0, 8, 8, 8);
-    sdl::draw(*corner_textures[fg_index][bg_index], 31 * 8, 21 * 8, 8, 8, 8, 8);
-    for(int x = 1; x <= 30; ++x) {
-        sdl::draw(*edge_textures[fg_index][bg_index], x * 8, 0, 0, 8, 8, 8);
-        sdl::draw(*edge_textures[fg_index][bg_index], x * 8, 21 * 8, 8, 8, 8, 8);
-    }
-    for(int y = 1; y <= 20; ++y) {
-        sdl::draw(*edge_textures[fg_index][bg_index], 0, y * 8, 0, 0, 8, 8);
-        sdl::draw(*edge_textures[fg_index][bg_index], 31 * 8, y * 8, 8, 0, 8, 8);
-    }
-}
-
-namespace gfx {
-    void draw_menu_border() {
-        draw_border(bright_red, bright_yellow);
-        draw_text("       PRESS KEYS 1 TO 4        ", bright_yellow, bright_red, 0, 22);
-    }
-
-    void draw_spell_border() {
-        draw_border(bright_blue, bright_cyan);
-        draw_text("         PRESS ANY KEY          ", bright_cyan, bright_blue, 0, 22);
-    }
-
-    void draw_info_border() {
-        draw_border(bright_green, bright_black);
-        draw_text("         PRESS ANY KEY          ", bright_black, bright_green, 0, 22);
-    }
-
-    void draw_arena_border() {
-        draw_border(bright_blue, black);
-    }
-}
-
-const std::string spell_bytes = "ffff8001800187e18c3188118c0187e18031801188118c3187e180018001ffff";
-const std::string box_bytes = "ffffffffc003c003c003c003c003c003c003c003c003c003c003c003ffffffff";
-const std::string wings_bytes = "c003e007700e300c000000001c383e7c63c6018001800240300c700ee007c003";
-const std::string ranged_bytes = "f81fe007f00fb81d98190000000000000000000000009819b81df00fe007f83f";
-
-std::map <int, std::unique_ptr<SpriteTexture>> spell_textures;
-std::map <int, std::unique_ptr<SpriteTexture>> box_textures;
-std::map <int, std::unique_ptr<SpriteTexture>> wings_textures;
-std::map <int, std::unique_ptr<SpriteTexture>> ranged_textures;
-
-void draw_cursor_texture(const std::string &bytes, std::map<int, std::unique_ptr<SpriteTexture>> &textures, const RGB &rgb, const int &x, const int &y) {
-    const auto rgb_index = rgb.get_24_bit_index(); 
-    if(!textures[rgb_index])
-        textures[rgb_index] = std::unique_ptr<SpriteTexture>(new SpriteTexture(bytes, rgb));
-    sdl::draw(*textures[rgb_index], 8 + x * 16, 8 + y * 16);
-}
-
-namespace gfx {
-    void draw_spell_cursor(const RGB &rgb, const int &x, const int &y) {
-        draw_cursor_texture(spell_bytes, spell_textures, rgb, x, y);
-    }
-
-    void draw_box_cursor(const RGB &rgb, const int &x, const int &y) {
-        draw_cursor_texture(box_bytes, box_textures, rgb, x, y);
-    }
-
-    void draw_wings_cursor(const RGB &rgb, const int &x, const int &y) {
-        draw_cursor_texture(wings_bytes, wings_textures, rgb, x, y);
-    }
-
-    void draw_ranged_cursor(const RGB &rgb, const int &x, const int &y) {
-        draw_cursor_texture(ranged_bytes, ranged_textures, rgb, x, y);
-    }
-}
-
 
 std::map<const std::string, const std::string> character_set = {
     {" ", "00000000000000000000000000000000"},
@@ -405,6 +302,98 @@ namespace gfx {
         }
     }
 
+}
+
+const std::string corner_bytes = "ffffffffeaaff55bd087e42bd087ea0bd057e10bd427e10bdaaff557ffffffff";
+const std::string edge_bytes = "d057e40bd027ea0bd057e40bd027ea0bff00ff11aa44551188aa225588ff00ff";
+
+std::map<int, std::map<int, std::unique_ptr<SpriteTexture>>> corner_textures;
+std::map<int, std::map<int, std::unique_ptr<SpriteTexture>>> edge_textures;
+
+void draw_border(const RGB &fg, const RGB &bg) {
+    sdl::clear();
+    const auto fg_index = fg.get_24_bit_index(); 
+    const auto bg_index = bg.get_24_bit_index(); 
+    if(!corner_textures[fg_index][bg_index])
+        corner_textures[fg_index][bg_index] = std::unique_ptr<SpriteTexture>(new SpriteTexture(corner_bytes, bg, fg));
+    if(!edge_textures[fg_index][bg_index])
+        edge_textures[fg_index][bg_index] = std::unique_ptr<SpriteTexture>(new SpriteTexture(edge_bytes, bg, fg));
+    sdl::draw(*corner_textures[fg_index][bg_index], 0, 0, 0, 0, 8, 8);
+    sdl::draw(*corner_textures[fg_index][bg_index], 31 * 8, 0, 8, 0, 8, 8);
+    sdl::draw(*corner_textures[fg_index][bg_index], 0, 21 * 8, 0, 8, 8, 8);
+    sdl::draw(*corner_textures[fg_index][bg_index], 31 * 8, 21 * 8, 8, 8, 8, 8);
+    for(int x = 1; x <= 30; ++x) {
+        sdl::draw(*edge_textures[fg_index][bg_index], x * 8, 0, 0, 8, 8, 8);
+        sdl::draw(*edge_textures[fg_index][bg_index], x * 8, 21 * 8, 8, 8, 8, 8);
+    }
+    for(int y = 1; y <= 20; ++y) {
+        sdl::draw(*edge_textures[fg_index][bg_index], 0, y * 8, 0, 0, 8, 8);
+        sdl::draw(*edge_textures[fg_index][bg_index], 31 * 8, y * 8, 8, 0, 8, 8);
+    }
+}
+
+namespace gfx {
+    void draw_title_border() {
+        draw_border(bright_purple, bright_red);
+    }
+
+    void draw_menu_border() {
+        draw_border(bright_yellow, bright_red);
+        draw_press_any_key(bright_yellow, bright_red);
+    }
+
+    void draw_player_entry_border() {
+        draw_border(bright_cyan, bright_blue);
+    }
+
+    void draw_spell_border() {
+        draw_border(bright_cyan, bright_blue);
+        draw_press_any_key(bright_cyan, bright_blue);
+    }
+
+    void draw_info_border() {
+        draw_border(bright_black, bright_green);
+        draw_press_any_key(black, bright_green);
+    }
+
+    void draw_arena_border() {
+        draw_border(black, bright_blue);
+    }
+}
+
+const std::string spell_bytes = "ffff8001800187e18c3188118c0187e18031801188118c3187e180018001ffff";
+const std::string box_bytes = "ffffffffc003c003c003c003c003c003c003c003c003c003c003c003ffffffff";
+const std::string wings_bytes = "c003e007700e300c000000001c383e7c63c6018001800240300c700ee007c003";
+const std::string ranged_bytes = "f81fe007f00fb81d98190000000000000000000000009819b81df00fe007f83f";
+
+std::map <int, std::unique_ptr<SpriteTexture>> spell_textures;
+std::map <int, std::unique_ptr<SpriteTexture>> box_textures;
+std::map <int, std::unique_ptr<SpriteTexture>> wings_textures;
+std::map <int, std::unique_ptr<SpriteTexture>> ranged_textures;
+
+void draw_cursor_texture(const std::string &bytes, std::map<int, std::unique_ptr<SpriteTexture>> &textures, const RGB &rgb, const int &x, const int &y) {
+    const auto rgb_index = rgb.get_24_bit_index(); 
+    if(!textures[rgb_index])
+        textures[rgb_index] = std::unique_ptr<SpriteTexture>(new SpriteTexture(bytes, rgb));
+    sdl::draw(*textures[rgb_index], 8 + x * 16, 8 + y * 16);
+}
+
+namespace gfx {
+    void draw_spell_cursor(const RGB &rgb, const int &x, const int &y) {
+        draw_cursor_texture(spell_bytes, spell_textures, rgb, x, y);
+    }
+
+    void draw_box_cursor(const RGB &rgb, const int &x, const int &y) {
+        draw_cursor_texture(box_bytes, box_textures, rgb, x, y);
+    }
+
+    void draw_wings_cursor(const RGB &rgb, const int &x, const int &y) {
+        draw_cursor_texture(wings_bytes, wings_textures, rgb, x, y);
+    }
+
+    void draw_ranged_cursor(const RGB &rgb, const int &x, const int &y) {
+        draw_cursor_texture(ranged_bytes, ranged_textures, rgb, x, y);
+    }
 }
 
 #define CORPSE_INDEX 4
@@ -1313,6 +1302,194 @@ namespace gfx {
     void draw_wall(const int &x, const int &y, const int &sprite_index) {
         draw_creation_texture(wall_bytes, wall_textures, x, y, sprite_index, wall_rgb);
     }
+
+    void draw_creation(const Creation& creation, const int &x, const int &y, const int &sprite_index) {
+        switch(creation.id) {
+        case 2:
+            draw_king_cobra(x, y, sprite_index);
+            break;
+        case 3:
+            draw_dire_wolf(x, y, sprite_index);
+            break;
+        case 4:
+            draw_goblin(x, y, sprite_index);
+            break;
+        case 5:
+            draw_crocodile(x, y, sprite_index);
+            break;
+        case 6:
+            draw_faun(x, y, sprite_index);
+            break;
+        case 7:
+            draw_lion(x, y, sprite_index);
+            break;
+        case 8:
+            draw_elf(x, y, sprite_index);
+            break;
+        case 9:
+            draw_orc(x, y, sprite_index);
+            break;
+        case 10:
+            draw_bear(x, y, sprite_index);
+            break;
+        case 11:
+            draw_gorilla(x, y, sprite_index);
+            break;
+        case 12:
+            draw_ogre(x, y, sprite_index);
+            break;
+        case 13:
+            draw_hydra(x, y, sprite_index);
+            break;
+        case 14:
+            draw_giant_rat(x, y, sprite_index);
+            break;
+        case 15:
+            draw_giant(x, y, sprite_index);
+            break;
+        case 16:
+            draw_horse(x, y, sprite_index);
+            break;
+        case 17:
+            draw_unicorn(x, y, sprite_index);
+            break;
+        case 18:
+            draw_centaur(x, y, sprite_index);
+            break;
+        case 19:
+            draw_pegasus(x, y, sprite_index);
+            break;
+        case 20:
+            draw_gryphon(x, y, sprite_index);
+            break;
+        case 21:
+            draw_manticore(x, y, sprite_index);
+            break;
+        case 22:
+            draw_bat(x, y, sprite_index);
+            break;
+        case 23:
+            draw_green_dragon(x, y, sprite_index);
+            break;
+        case 24:
+            draw_red_dragon(x, y, sprite_index);
+            break;
+        case 25:
+            draw_golden_dragon(x, y, sprite_index);
+            break;
+        case 26:
+            draw_harpy(x, y, sprite_index);
+            break;
+        case 27:
+            draw_eagle(x, y, sprite_index);
+            break;
+        case 28:
+            draw_vampire(x, y, sprite_index);
+            break;
+        case 29:
+            draw_ghost(x, y, sprite_index);
+            break;
+        case 30:
+            draw_spectre(x, y, sprite_index);
+            break;
+        case 31:
+            draw_wraith(x, y, sprite_index);
+            break;
+        case 32:
+            draw_skeleton(x, y, sprite_index);
+            break;
+        case 33:
+            draw_zombie(x, y, sprite_index);
+            break;
+        default:
+            throw 0;
+        }
+    }
+
+    void draw_creation_corpse(const Creation& creation, const int &x, const int &y) {
+        switch(creation.id) {
+        case 2:
+            draw_king_cobra_corpse(x, y);
+            break;
+        case 3:
+            draw_dire_wolf_corpse(x, y);
+            break;
+        case 4:
+            draw_goblin_corpse(x, y);
+            break;
+        case 5:
+            draw_crocodile_corpse(x, y);
+            break;
+        case 6:
+            draw_faun_corpse(x, y);
+            break;
+        case 7:
+            draw_lion_corpse(x, y);
+            break;
+        case 8:
+            draw_elf_corpse(x, y);
+            break;
+        case 9:
+            draw_orc_corpse(x, y);
+            break;
+        case 10:
+            draw_bear_corpse(x, y);
+            break;
+        case 11:
+            draw_gorilla_corpse(x, y);
+            break;
+        case 12:
+            draw_ogre_corpse(x, y);
+            break;
+        case 13:
+            draw_hydra_corpse(x, y);
+            break;
+        case 14:
+            draw_giant_rat_corpse(x, y);
+            break;
+        case 15:
+            draw_giant_corpse(x, y);
+            break;
+        case 16:
+            draw_horse_corpse(x, y);
+            break;
+        case 17:
+            draw_unicorn_corpse(x, y);
+            break;
+        case 18:
+            draw_centaur_corpse(x, y);
+            break;
+        case 19:
+            draw_pegasus_corpse(x, y);
+            break;
+        case 20:
+            draw_gryphon_corpse(x, y);
+            break;
+        case 21:
+            draw_manticore_corpse(x, y);
+            break;
+        case 22:
+            draw_bat_corpse(x, y);
+            break;
+        case 23:
+            draw_green_dragon_corpse(x, y);
+            break;
+        case 24:
+            draw_red_dragon_corpse(x, y);
+            break;
+        case 25:
+            draw_golden_dragon_corpse(x, y);
+            break;
+        case 26:
+            draw_harpy_corpse(x, y);
+            break;
+        case 27:
+            draw_eagle_corpse(x, y);
+            break;
+        default:
+            throw 0;
+        }
+    }
 }
 
 const std::vector<std::string> wizard_bytes = {
@@ -1328,16 +1505,24 @@ const std::vector<std::string> wizard_bytes = {
 
 std::map<int, std::map<int, std::unique_ptr<SpriteTexture>>> wizard_textures;
 
-void draw_indexed_coloured_texture(const std::vector<std::string> &bytes, std::map<int, std::map<int, std::unique_ptr<SpriteTexture>>> &textures, const int &sprite_index, const RGB &rgb, const int &x, const int &y) {
+void draw_indexed_coloured_texture_xy(const std::vector<std::string> &bytes, std::map<int, std::map<int, std::unique_ptr<SpriteTexture>>> &textures, const int &sprite_index, const RGB &rgb, const int &x, const int &y) {
     const auto rgb_index = rgb.get_24_bit_index(); 
     if(!textures[sprite_index][rgb_index])
         textures[sprite_index][rgb_index] = std::unique_ptr<SpriteTexture>(new SpriteTexture(bytes[sprite_index], rgb, black));
-    sdl::draw(*textures[sprite_index][rgb_index], 8 + x * 16, 8 + y * 16);
+    sdl::draw(*textures[sprite_index][rgb_index], x, y);
+}
+
+void draw_indexed_coloured_texture(const std::vector<std::string> &bytes, std::map<int, std::map<int, std::unique_ptr<SpriteTexture>>> &textures, const int &sprite_index, const RGB &rgb, const int &x, const int &y) {
+    draw_indexed_coloured_texture_xy(bytes, textures, sprite_index, rgb, 8 + x * 16, 8 + y * 16);
 }
 
 namespace gfx {
     void draw_wizard(const int &sprite_index, const RGB &rgb, const int &x, const int &y) {
         draw_indexed_coloured_texture(wizard_bytes, wizard_textures, sprite_index, rgb, x, y);
+    }
+
+    void draw_wizard_xy(const int &sprite_index, const RGB &rgb, const int &x, const int &y) {
+        draw_indexed_coloured_texture_xy(wizard_bytes, wizard_textures, sprite_index, rgb, x, y);
     }
 }
 
@@ -1413,6 +1598,31 @@ namespace gfx {
 
     void draw_magic_bow(const int &sprite_index, const RGB &rgb, const int &x, const int &y) {
         draw_indexed_coloured_texture(magic_bow_bytes, magic_bow_textures, sprite_index, rgb, x, y);
+    }
+
+    void draw_wizard(const Wizard wizard, const int &x, const int &y, const int &frame_index) {
+        if(wizard.shadow_form && frame_index > (wizard.anim_timing / 2))
+            return;
+        switch(wizard.last_change) {
+        case Wizard::LastChange::none:
+            draw_wizard(wizard.sprite_index, wizard.rgb, x, y);
+            break;
+        case Wizard::LastChange::magic_sword:
+            draw_magic_sword(frame_index, wizard.rgb, x, y);
+            break;
+        case Wizard::LastChange::magic_knife:
+            draw_magic_knife(frame_index, wizard.rgb, x, y);
+            break;
+        case Wizard::LastChange::magic_armour:
+            draw_magic_armour(frame_index, wizard.rgb, x, y);
+            break;
+        case Wizard::LastChange::magic_shield:
+            draw_magic_shield(frame_index, wizard.rgb, x, y);
+            break;
+        case Wizard::LastChange::magic_wings:
+            draw_magic_wings(frame_index, wizard.rgb, x, y);
+            break;
+        }
     }
 }
 
@@ -1828,8 +2038,7 @@ namespace gfx {
     }
 
     void draw_stats(const Unit& unit) {
-        draw_border(black, bright_green);
-        draw_press_any_key(black, bright_green);
+        draw_info_border();
         draw_text(unit.name, bright_yellow, black, 4, 2);
         draw_text("COMBAT=", bright_cyan, black, 4, 6);
         draw_text(std::to_string(unit.combat), bright_white, black, 11, 6);
@@ -1881,7 +2090,6 @@ namespace gfx {
     }
 
     void draw_spell(const Spell& spell) {
-        sdl::clear();
         int cast_chance_percentage = (spell.world_cast_chance() + 1) * 10;
         if (spell.type == Spell::creation) {
             auto creation = wizard::generate_creation_from_id(spell.id);
@@ -1892,8 +2100,7 @@ namespace gfx {
             if(cast_range > 9) {
                 cast_range = 20;
             }
-            draw_border(bright_cyan, bright_blue);
-            draw_press_any_key(bright_cyan, bright_blue);
+            draw_spell_border();
             draw_text(spell.name, bright_yellow, black, 8, 5);
             alignment_text(spell.alignment, 8, 7);
             draw_text("CASTING CHANCE=", bright_green, black, 8, 11);
@@ -1916,15 +2123,15 @@ namespace gfx {
             int y = (std::floor(i / 2) + 1) * 2;
             std::string text;
             text = 'A' + i;
-            if(wizard.spellbook[i]->alignment > 0) {
+            if(wizard.spellbook[i].alignment > 0) {
                 text += "^";
-            } else if(wizard.spellbook[i]->alignment < 0) {
+            } else if(wizard.spellbook[i].alignment < 0) {
                 text += "*";
             } else {
                 text += "-";
             }
-            text += wizard.spellbook[i]->name;
-            int cast_chance = wizard.spellbook[i]->world_cast_chance();
+            text += wizard.spellbook[i].name;
+            int cast_chance = wizard.spellbook[i].world_cast_chance();
             draw_text(text, *spell_rgbs[cast_chance], black, x, y);
         }
         draw_text("PRESS '0' TO RETURN TO MAIN MENU", bright_yellow, black, 0, 22);
@@ -1932,14 +2139,79 @@ namespace gfx {
 }
 
 namespace gfx {
+    void draw_title_screen() {
+        draw_title_border();
+        draw_text("CHAOS -THE BATTLE OF WIZARDS", bright_purple, black, 2, 2);
+        draw_text("By Julian Gollop", bright_red, black, 8, 4);
+        draw_text("Host game?", bright_yellow, black, 2, 9);
+        draw_text("(2 to 8 players)", bright_green, black, 2, 11);
+    }
+
+    void draw_enter_server() {
+        draw_text("Server?", bright_yellow, black, 2, 14);
+        draw_text("(28 letters max.)", bright_purple, black, 10, 14);
+    }
+
     void draw_main_menu(const std::string& player_name) {
-        sdl::clear();
-        draw_border(bright_yellow, bright_red);
-        draw_text("       PRESS KEYS 1 TO 4        ", bright_yellow, bright_red, 0, 22);
+        draw_menu_border();
         draw_text(player_name, bright_yellow, black, 7, 5);
         draw_text("1.EXAMINE SPELLS", bright_cyan, black, 7, 9);
         draw_text("2.SELECT SPELL", bright_cyan, black, 7, 11);
         draw_text("3.EXAMINE BOARD", bright_cyan, black, 7, 13);
         draw_text("4.CONTINUE WITH GAME", bright_cyan, black, 7, 15);
+    }
+
+    void draw_player_entry_screen() {
+        draw_player_entry_border();
+        draw_text("PLAYER", bright_yellow, black, 2, 2);
+        draw_text("Enter name (12 letters max.)", bright_purple, black, 2, 4);
+    }
+
+    void draw_computer_controlled_question() {
+        draw_text("Computer controlled?", bright_purple, black, 2, 9);
+        draw_text("NO", bright_yellow, black, 23, 9);
+    }
+
+    void draw_which_character_question() {
+        draw_text("Which character?", bright_purple, black, 2, 11);
+        for(int i = 0; i < 8; ++i) {
+            draw_text(std::to_string(i + 1), bright_cyan, black, 2 + i * 3, 13);
+            draw_wizard_xy(i, bright_cyan, 24 + i * 24, 13 * 8);
+        }
+    }
+
+    void draw_which_colour_question(const int& sprite_index) {
+        draw_text("Which colour?", bright_purple, black, 2, 16);
+        for(int i = 0; i < 8; ++i) {
+            draw_text(std::to_string(i + 1), bright_yellow, black, 2 + i * 3, 18);
+            draw_wizard_xy(sprite_index, wizard_rgbs[i], 24 + i * 24, 18 * 8);
+        }
+    }
+
+    void draw_info_text(const Tile& tile) {
+        int x = 0;
+        if(tile.creation) {
+            draw_text(tile.creation->name, bright_cyan, black, 0, 22);
+            x += tile.creation->name.size();
+            if(tile.wizard) {
+                draw_text("#", bright_white, black, x, 22);
+                x += 1;
+            } else if(tile.corpse) {
+                draw_text("#", bright_purple, black, x, 22);
+                x += 1;
+            }
+            draw_text("(" + tile.creation_owner->name + ")", bright_yellow, black, x, 22);
+        } else if(tile.wizard) {
+            draw_text(tile.wizard->name, bright_cyan, black, 0, 22);
+            x += tile.wizard->name.size();
+            if(tile.corpse) {
+                draw_text("#", bright_purple, black, x, 22);
+                x += 1;
+            }
+        } else if(tile.corpse) {
+            draw_text(tile.corpse->name, bright_cyan, black, 0, 22);
+            x += tile.corpse->name.size();
+            draw_text("(DEAD)", bright_green, black, x + 1, 22);
+        }
     }
 }

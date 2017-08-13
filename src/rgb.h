@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+
 struct RGB {
     unsigned char red, green, blue, alpha;
     RGB(const unsigned char &red = 0, const unsigned char &green = 0, const unsigned char &blue = 0, const unsigned char &alpha = 255);
@@ -24,4 +25,4 @@ extern const RGB bright_yellow;
 extern const RGB bright_white;
 extern const RGB alpha;
 
-extern const std::vector<const RGB *> palette;
+extern const std::vector<RGB> palette;
