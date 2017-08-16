@@ -4,7 +4,7 @@ SRC = $(wildcard src/*.cc) $(wildcard src/**/*.cc)
 OBJ = $(SRC:.cc=.o)
 CXX = clang++
 CXXFLAGS = -Wall -std=c++14 -I/usr/local/include
-LDFLAGS = -L/usr/local/lib -lSDL2 -lSDL2_image
+LDFLAGS = -L/usr/local/lib -lSDL2 -lSDL2_mixer
 DEP = $(OBJ:.o=.d)
 
 $(OUT): $(OBJ)

@@ -1,5 +1,6 @@
 #pragma once
 #include "rgb.h"
+#include "coords.h"
 #include <cstdlib>
 #include <string>
 
@@ -40,6 +41,7 @@ struct Spell {
     } type;
 
     int world_cast_chance() const;
+    bool within_range(const Coords& sxy, const Coords& dxy) const;
 };
 
 typedef std::vector<Spell> Spellbook;

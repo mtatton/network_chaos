@@ -1,14 +1,20 @@
 #include "wizard.h"
+#include "arena.h"
 #include <random>
-
-int world_alignment = 0;
 
 const std::vector<RGB> wizard_rgbs = {bright_red, bright_purple, bright_green, bright_cyan, yellow, bright_yellow, white, bright_white};
 
 int Spell::world_cast_chance() const {
+    int world_alignment = arena::world_alignment;
     if ((world_alignment < 0 && alignment < 0) || (world_alignment > 0 && alignment > 0))
         return std::min(int(std::floor(std::abs(world_alignment) / 4) + cast_chance), 9);
     return cast_chance;
+}
+
+bool Spell::within_range(const Coords& sxy, const Coords& dxy) const {
+    auto diff_xy = sxy.compute_diff_with(dxy);
+    int doubled_max = std::max(diff_xy.x, diff_xy.y) * 2;
+    return doubled_max < doubled_cast_range;
 }
 
 const Spell disbelieve = {"DISBELIEVE", 93, 9, 255, 0, 0, Spell::disbelieve};
@@ -72,8 +78,12 @@ const Spell subversion = {"SUBVERSION", 117, 9, 15, 0, 18, Spell::subversion};
 const Spell raise_dead = {"RAISE DEAD", 115, 4, 9, -1, 18, Spell::raise_dead};
 const Spell turmoil = {"TURMOIL", 118, 9, 20, -1, 17, Spell::turmoil};
 
+// const Spellbook selection = {
+//     disbelieve, king_cobra, dire_wolf, goblin, crocodile, faun, lion, elf, orc, bear, gorilla, ogre, hydra, giant_rat, giant, horse, unicorn, centaur, pegasus, gryphon, manticore, bat, green_dragon, red_dragon, golden_dragon, harpy, eagle, vampire, ghost, spectre, wraith, skeleton, zombie, gooey_blob, magic_fire, magic_wood, shadow_wood, magic_castle, dark_citadel, wall, magic_bolt, magic_bolt, lightning, lightning, vengeance, decree, dark_power, justice, magic_shield, magic_armour, magic_sword, magic_knife, magic_bow, magic_wings, law_1, law_2, chaos_1, chaos_2, shadow_form, subversion, subversion, raise_dead, raise_dead
+// };
+
 const Spellbook selection = {
-    disbelieve, king_cobra, dire_wolf, goblin, crocodile, faun, lion, elf, orc, bear, gorilla, ogre, hydra, giant_rat, giant, horse, unicorn, centaur, pegasus, gryphon, manticore, bat, green_dragon, red_dragon, golden_dragon, harpy, eagle, vampire, ghost, spectre, wraith, skeleton, zombie, gooey_blob, magic_fire, magic_wood, shadow_wood, magic_castle, dark_citadel, wall, magic_bolt, magic_bolt, lightning, lightning, vengeance, decree, dark_power, justice, magic_shield, magic_armour, magic_sword, magic_knife, magic_bow, magic_wings, law_1, law_2, chaos_1, chaos_2, shadow_form, subversion, subversion, raise_dead, raise_dead
+    disbelieve, king_cobra, dire_wolf, goblin, crocodile, faun, lion, elf, orc, bear, gorilla, ogre, hydra, giant_rat, giant, horse, unicorn, centaur, pegasus, gryphon, manticore, bat, green_dragon, red_dragon, golden_dragon, harpy, eagle, vampire, ghost, spectre, wraith, skeleton, zombie
 };
 
 Creation::Creation(const std::string& name, const int& id, const int& combat, const int& ranged_combat, const int& range, const int& defence, const int& movement, const int& manoeuvre, const int& magical_resistance, const int& casting_chance, const int& alignment, const int& anim_timing, const bool& mount, const bool& flying, const bool& undead, const bool& transparent, const bool& subvertable, const bool& shelter) {
