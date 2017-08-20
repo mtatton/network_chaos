@@ -14,33 +14,24 @@ struct Unit {
     int manoeuvre = 0;
     int magical_resistance = 0;
     int anim_timing = 0;
-};
-
-struct Creation : public Unit {
-    Creation(const std::string& name, const int& id, const int& combat, const int& ranged_combat, const int& range, const int& defence, const int& movement, const int& manoeuvre, const int& magical_resistance, const int& casting_chance, const int& alignment, const int& anim_timing, const bool& mount, const bool& flying, const bool& undead, const bool& transparent, const bool& subvertable, const bool& shelter);
-    int id = 0;
-    int casting_chance = 0;
-    int alignment = 0;
-    bool mount = false;
-    bool flying = false;
-    bool undead = false;
-    bool transparent = false;
-    bool subvertable = false;
-    bool shelter = false;
+    bool turn = false;
+    bool disengage(const Unit& opponent);
+    bool within_ranged_combat_range(const Coords& sxy, const Coords& dxy);
 };
 
 struct Spell {
     std::string name;
-    int id;
-    int cast_chance;
-    int doubled_cast_range;
-    int alignment;
-    int cast_priority;
+    int id = 0;
+    int cast_chance = 0;
+    int doubled_cast_range = 0;
+    int alignment = 0;
+    int cast_priority = 0;
     enum SpellType {
         disbelieve, creation, gooey_blob, magic_fire, shelter, wall, elemental, magic, magic_shield, magic_armour, magic_sword, magic_knife, magic_bow, magic_wings, change_alignment, shadow_form, subversion, raise_dead, turmoil
     } type;
 
     int world_cast_chance() const;
+    bool cast() const;
     bool within_range(const Coords& sxy, const Coords& dxy) const;
 };
 
@@ -60,11 +51,36 @@ struct Wizard : public Unit {
     bool magic_armour = false;
     bool magic_shield = false;
     bool magic_wings = false;
+    bool magic_bow = false;
     bool shadow_form = false;
     enum class LastChange {
-        none, magic_sword, magic_knife, magic_armour, magic_shield, magic_wings
+        none, magic_sword, magic_knife, magic_armour, magic_shield, magic_wings, magic_bow
     } last_change = LastChange::none;
     bool obtain_random_spell();
+    void gain_magic_sword();
+    void gain_magic_knife();
+    void gain_magic_armour();
+    void gain_magic_shield();
+    void gain_magic_wings();
+    void gain_magic_bow();
+    void gain_shadow_form();
+    bool within_flying_range(const Coords& sxy, const Coords& dxy);
+};
+
+struct Creation : public Unit {
+    Creation(const std::string& name, const int& id, const int& combat, const int& ranged_combat, const int& range, const int& defence, const int& movement, const int& manoeuvre, const int& magical_resistance, const int& casting_chance, const int& alignment, const int& anim_timing, const bool& mount, const bool& flying, const bool& undead, const bool& transparent, const bool& subvertable, const bool& shelter);
+    int id = 0;
+    int casting_chance = 0;
+    int alignment = 0;
+    bool mount = false;
+    bool flying = false;
+    bool undead = false;
+    bool transparent = false;
+    bool subvertable = false;
+    bool shelter = false;
+    bool illusion = false;
+    std::shared_ptr<Wizard> owner;
+    bool within_flying_range(const Coords& sxy, const Coords& dxy);
 };
 
 namespace wizard {
@@ -73,6 +89,10 @@ namespace wizard {
     bool attack(const Creation& attacker, const Wizard& defender);
     bool attack(const Wizard& attacker, const Creation& defender);
     bool attack(const Wizard& attacker, const Wizard& defender);
+    bool ranged_attack(const Creation& attacker, const Creation& defender);
+    bool ranged_attack(const Creation& attacker, const Wizard& defender);
+    bool ranged_attack(const Wizard& attacker, const Creation& defender);
+    bool ranged_attack(const Wizard& attacker, const Wizard& defender);
 }
 
 extern const std::vector<RGB> wizard_rgbs;

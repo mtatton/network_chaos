@@ -3,7 +3,7 @@
 #include "audio.h"
 #include "event.h"
 
-void Tile::reset() {
+void Tile::reset_frame_count() {
     frame_count = 0;
     frame_index = 0;
 }
@@ -18,40 +18,40 @@ void Tile::tic(const int& anim_timing) {
     frame_count += 1;
 }
 
-void Tile::clear_wizard() {
-    reset();
-    wizard.reset();
-    illusion = false;
-    turn = false;
-}
-
-void Tile::clear_creation() {
-    reset();
-    creation.reset();
-    creation_owner.reset();
-    illusion = false;
-    turn = false;
-}
-
 void Tile::add(const std::shared_ptr<Wizard>& wizard) {
-    reset();
     this->wizard = wizard;
+    reset_frame_count();
 }
 
-void Tile::add(const std::shared_ptr<Creation>& creation, const std::shared_ptr<Wizard>& creation_owner, const bool& illusion) {
-    reset();
+void Tile::add(const std::shared_ptr<Creation>& creation) {
     this->creation = creation;
-    this->creation_owner = creation_owner;
-    this->illusion = illusion;
+    reset_frame_count();
+}
+
+void Tile::remove_creation() {
+    if(creation)
+        creation.reset();
+}
+
+void Tile::remove_wizard() {
+    if(wizard)
+        wizard.reset();
+}
+
+void Tile::end_turn() {
+    if(wizard)
+        wizard->turn = false;
+    if(creation)
+        creation->turn = false;
 }
 
 void Tile::move_wizard_to(Tile& tile) {
     if(this != &tile) {
         if(wizard) {
+            end_turn();
             tile.wizard = wizard;
-            tile.turn = false;
-            tile.reset();
-            clear_wizard();
+            wizard.reset();
+            tile.reset_frame_count();
         }
     }
 }
@@ -59,20 +59,35 @@ void Tile::move_wizard_to(Tile& tile) {
 void Tile::move_creation_to(Tile& tile) {
     if(this != &tile) {
         if(creation) {
+            end_turn();
             tile.creation = creation;
-            tile.creation_owner = creation_owner;
-            tile.illusion = illusion;
-            tile.reset();
+            creation.reset();
             if(wizard)
                 move_wizard_to(tile);
-            clear_creation();
+            tile.reset_frame_count();
         }
     }
 }
 
+void Tile::turn_creation_to_corpse() {
+    if(creation) {
+        if(corpse)
+            corpse.reset();
+        corpse = creation;
+        creation.reset();
+    }
+}
+
+bool Tile::has_enemy(const std::shared_ptr<Wizard>& opposing_wizard) {
+    if(wizard && wizard != opposing_wizard)
+        return true;
+    if(creation && creation->owner != opposing_wizard)
+        return true;
+    return false;
+}
+
 namespace arena {
-    std::vector<std::shared_ptr<Wizard>> wizards;
-    std::vector<std::shared_ptr<Creation>> creations;
+    int number_of_wizards = 0;
 
     std::vector<std::vector<Coords>> initial_positions = {
         {{1, 4}},
@@ -90,7 +105,6 @@ namespace arena {
 
 
     void add(const std::shared_ptr<Wizard>& wizard) {
-        auto number_of_wizards = wizards.size();
         if(number_of_wizards > 0) {
             for(int i = 0; i < number_of_wizards; ++i) {
                 auto old_coords = initial_positions[number_of_wizards - 1][i];
@@ -100,12 +114,11 @@ namespace arena {
         }
         auto coords = initial_positions[number_of_wizards][number_of_wizards];
         tiles[coords.x][coords.y].add(wizard);
-        wizards.push_back(wizard);
+        number_of_wizards += 1;
     }
 
-    void add(const std::shared_ptr<Creation>& creation, const std::shared_ptr<Wizard>& creation_owner, const bool& illusion, const Coords& xy) {
-        tiles[xy.x][xy.y].add(creation, creation_owner, illusion);
-        creations.push_back(creation);
+    void add(const std::shared_ptr<Creation>& creation, const Coords& xy) {
+        tiles[xy.x][xy.y].add(creation);
     }
 
     Coords get_wizard_coords(const std::shared_ptr<Wizard>& wizard) {
@@ -116,16 +129,28 @@ namespace arena {
         return {0, 0};
     }
 
-    void kill(const Coords& xy) {
+    void kill_creation(const Coords& xy) {
         auto& tile = tiles[xy.x][xy.y];
-        if(tile.creation) {
-            tile.corpse = tile.creation;
-            tile.clear_creation();
-        }
+        if(tile.creation->illusion || tile.creation->undead)
+            tile.remove_creation();
+        else
+            tile.turn_creation_to_corpse();
     }
 
-    void draw() {
-        gfx::draw_arena_border();
+    std::vector<Coords> coords_for_all_creations(const std::shared_ptr<Wizard>& wizard) {
+        std::vector<Coords> coords;
+        for(int y = 0; y < 10; ++y) {
+            for(int x = 0; x < 15; ++x) {
+                auto& tile = tiles[x][y];
+                if(tile.creation && tile.creation->owner == wizard)
+                    coords.push_back({x, y});
+            }
+        }
+        return coords;
+    }
+
+    void draw(const RGB& rgb) {
+        gfx::draw_arena_border(rgb);
         for(int y = 0; y < 10; ++y) {
             for(int x = 0; x < 15; ++x) {
                 auto& tile = tiles[x][y];
@@ -135,7 +160,8 @@ namespace arena {
                     tile.tic(creation.anim_timing);
                 } else if(tile.wizard) {
                     auto& wizard = *tiles[x][y].wizard;
-                    gfx::draw_wizard(wizard, {x, y}, tile.frame_index);
+                    if(!wizard.shadow_form || tile.frame_count >= 15)
+                        gfx::draw_wizard(wizard, {x, y}, tile.frame_index);
                     tile.tic(wizard.anim_timing);
                 } else if(tile.corpse) {
                     auto& corpse = *tiles[x][y].corpse;
@@ -164,10 +190,10 @@ namespace arena {
         for(int y = 0; y < 10; ++y) {
             for(int x = 0; x < 15; ++x) {
                 auto& tile = tiles[x][y];
-                if(tile.creation && tile.creation_owner == wizard)
-                    tile.turn = value;
+                if(tile.creation && tile.creation->owner == wizard)
+                    tile.creation->turn = value;
                 else if(tile.wizard && tile.wizard == wizard)
-                    tile.turn = value;
+                    tile.wizard->turn = value;
             }
         }
     }
@@ -178,5 +204,41 @@ namespace arena {
 
     void clear_turn_flags(const std::shared_ptr<Wizard>& wizard) {
         change_turn_flags(wizard, false);
+    }
+
+    void display_tile_over_player_units(const std::shared_ptr<Wizard>& wizard) {
+        for(int y = 0; y < 10; ++y) {
+            for(int x = 0; x < 15; ++x) {
+                auto& tile = tiles[x][y];
+                if((tile.creation && tile.creation->owner == wizard) || (tile.wizard && tile.wizard == wizard))
+                    gfx::draw_box_cursor(wizard->rgb, {x, y});
+            }
+        }
+    }
+
+    std::vector<Tile *> obtain_enemies_on_neighbouring_tiles(const std::shared_ptr<Wizard>& wizard, const Coords& xy) {
+        std::vector<Tile *> neighbouring_enemies;
+        if(xy.y > 0) {
+            if(xy.x > 0 && tiles[xy.x - 1][xy.y - 1].has_enemy(wizard))
+                neighbouring_enemies.push_back(&tiles[xy.x - 1][xy.y - 1]);
+            if(tiles[xy.x][xy.y - 1].has_enemy(wizard))
+                neighbouring_enemies.push_back(&tiles[xy.x][xy.y - 1]);
+            if(xy.x < 14 && tiles[xy.x + 1][xy.y - 1].has_enemy(wizard))
+                neighbouring_enemies.push_back(&tiles[xy.x + 1][xy.y - 1]);
+        }
+        
+        if(xy.x > 0 && tiles[xy.x - 1][xy.y].has_enemy(wizard))
+            neighbouring_enemies.push_back(&tiles[xy.x - 1][xy.y]);
+        if(xy.x < 14 && tiles[xy.x + 1][xy.y].has_enemy(wizard))
+            neighbouring_enemies.push_back(&tiles[xy.x + 1][xy.y]);
+        if(xy.y < 9) {
+            if(xy.x > 0 && tiles[xy.x - 1][xy.y + 1].has_enemy(wizard))
+                neighbouring_enemies.push_back(&tiles[xy.x - 1][xy.y + 1]);
+            if(tiles[xy.x][xy.y + 1].has_enemy(wizard))
+                neighbouring_enemies.push_back(&tiles[xy.x][xy.y + 1]);
+            if(xy.x < 14 && tiles[xy.x + 1][xy.y + 1].has_enemy(wizard))
+                neighbouring_enemies.push_back(&tiles[xy.x + 1][xy.y + 1]);
+        }
+        return neighbouring_enemies;
     }
 }

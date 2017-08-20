@@ -1,6 +1,7 @@
 #include "event.h"
 #include "gfx.h"
 #include "audio.h"
+#include "sdl.h"
 #include <functional>
 
 namespace event {
@@ -22,9 +23,23 @@ namespace event {
         return false;
     }
 
+    bool loop_textinput() {
+        SDL_FlushEvent(SDL_TEXTINPUT);
+        while(SDL_PollEvent(&sdl_event)) {
+            switch(sdl_event.type) {
+            case SDL_QUIT:
+                exit(0);
+            case SDL_TEXTINPUT:
+                return true;
+            }
+        }
+        sdl::refresh();
+        return false;
+    }
+
     void wait_for_key(const int& frame_delay) {
         int frame_count = 0;
-        while(!loop()) {
+        while(!loop_textinput()) {
             if(frame_delay) {
                 if(frame_delay == frame_count)
                     return;
@@ -70,21 +85,20 @@ namespace event {
         }
     }
 
-    bool get_yes_or_no(const RGB& fg, const RGB& bg, const Coords& xy) {
+    bool get_yes_or_no(const Coords& xy, const RGB& fg, const RGB& bg) {
         bool choice = get_yes_or_no();
         audio::play_key();
-        gfx::draw_text(choice ? "YES" : "NO", fg, bg, xy);
+        gfx::draw_text(choice ? "YES" : "NO", xy, fg, bg);
         sdl::refresh();
         return choice;
     }
 
-    std::string text_input(std::function<bool(char)> validate, const int& max_characters, const RGB& fg, const RGB& bg, const Coords& xy) {
+    std::string text_input(std::function<bool(char)> validate, const int& max_characters, const Coords& xy, const RGB& fg, const RGB& bg = black) {
         std::string text;
         int text_x = xy.x;
-        bool text_entered = false;
         SDL_FlushEvent(SDL_KEYDOWN);
         SDL_FlushEvent(SDL_TEXTINPUT);
-        do {
+        while(true) {
             while(SDL_PollEvent(&sdl_event)) {
                 switch(sdl_event.type) {
                 case SDL_QUIT:
@@ -95,41 +109,40 @@ namespace event {
                         if(keys[SDL_SCANCODE_BACKSPACE]) {
                             text_x -= 1;
                             audio::play_key();
-                            gfx::draw_text(text.substr(text.size() - 1, 1), bg, bg, {text_x, xy.y});
+                            gfx::draw_text(text.substr(text.size() - 1, 1), {text_x, xy.y}, bg, bg);
                             text.pop_back();
                         }
                         if(keys[SDL_SCANCODE_RETURN] || keys[SDL_SCANCODE_KP_ENTER])
-                            text_entered = true;
+                            return text;
                     }
                     break;
                 case SDL_TEXTINPUT:
                     if(text.size() < max_characters && strlen(sdl_event.text.text) == 1 && validate(sdl_event.text.text[0])) {
                         text += sdl_event.text.text;
                         audio::play_key();
-                        gfx::draw_text(text.substr(text.size() - 1, 1), fg, bg, {text_x, xy.y});
+                        gfx::draw_text(text.substr(text.size() - 1, 1), {text_x, xy.y}, fg, bg);
                         text_x += 1;
                     }
                     break;
                 }
             }
             sdl::refresh();
-        } while(!text_entered);
-        return text;
+        }
     }
 
     std::string text_input_name(const RGB& fg, const Coords& xy) {
         return text_input([](char c) -> bool {
             return c == ' ' || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z');
-        }, 12, fg, black, xy);
+        }, 12, xy, fg);
     }
 
     std::string text_input_server(const RGB& fg, const Coords& xy) {
         return text_input([](char c) -> bool {
             return c >= '!' && c <= '~';
-        }, 28, fg, black, xy);
+        }, 28, xy, fg);
     }
 
-    int number_input(const int& min, const int& max, const RGB& fg, const RGB& bg, const Coords& xy) {
+    int number_input(const int& min, const int& max, const Coords& xy, const RGB& fg, const RGB& bg) {
         SDL_FlushEvent(SDL_TEXTINPUT);
         while(true) {
             while(SDL_PollEvent(&sdl_event)) {
@@ -141,7 +154,7 @@ namespace event {
                         int num = sdl_event.text.text[0] - '0';
                         if(num >= min && num <= max) {
                             audio::play_key();
-                            gfx::draw_text(sdl_event.text.text, fg, bg, xy);
+                            gfx::draw_text(sdl_event.text.text, xy, fg, bg);
                             loop();
                             return num;
                         }
@@ -156,7 +169,7 @@ namespace event {
     CursorOption move_xy(Coords& xy, const Coords& diff) {
         xy.x = std::max(0, std::min(14, xy.x + diff.x));
         xy.y = std::max(0, std::min(9, xy.y + diff.y));
-        return CursorOption::none;
+        return CursorOption::move;
     }
 
     CursorOption cursor_movement(Coords& xy) {
@@ -191,6 +204,6 @@ namespace event {
     void delay(const int& frames) {
         for(int i = 0; i < frames; ++i)
             if(!loop())
-                sdl::refresh();
+                sdl::present();
     }
 }

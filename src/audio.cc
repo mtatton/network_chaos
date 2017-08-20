@@ -1,4 +1,5 @@
 #include "audio.h"
+#include "event.h"
 #include <SDL2/SDL_mixer.h>
 #include <memory>
 #include "samples/key_wav.h"
@@ -8,6 +9,18 @@
 #include "samples/spell_text_wav.h"
 #include "samples/turn_over_wav.h"
 #include "samples/cancel_wav.h"
+#include "samples/start_move_wav.h"
+#include "samples/move_wav.h"
+#include "samples/landing_wav.h"
+#include "samples/engaged_to_enemy_wav.h"
+#include "samples/attack_wav.h"
+#include "samples/wizard_death_wav.h"
+#include "samples/ranged_attack_wav.h"
+#include "samples/shot_wav.h"
+#include "samples/hit_wav.h"
+#include "samples/burn_beam_wav.h"
+#include "samples/burn_wav.h"
+#include "samples/explosion_wav.h"
 
 class Audio {
 public:
@@ -39,6 +52,18 @@ namespace audio {
     std::unique_ptr<Audio> spell_text;
     std::unique_ptr<Audio> turn_over;
     std::unique_ptr<Audio> cancel;
+    std::unique_ptr<Audio> start_move;
+    std::unique_ptr<Audio> move;
+    std::unique_ptr<Audio> landing;
+    std::unique_ptr<Audio> engaged_to_enemy;
+    std::unique_ptr<Audio> attack;
+    std::unique_ptr<Audio> wizard_death;
+    std::unique_ptr<Audio> ranged_attack;
+    std::unique_ptr<Audio> shot;
+    std::unique_ptr<Audio> hit;
+    std::unique_ptr<Audio> burn_beam;
+    std::unique_ptr<Audio> burn;
+    std::unique_ptr<Audio> explosion;
 
     void play(std::unique_ptr<Audio>& audio, unsigned char * bytes, const int& length) {
         if(!audio)
@@ -75,9 +100,65 @@ namespace audio {
 
     void play_turn_over() {
         play(turn_over, turn_over_wav, turn_over_wav_len);
+        event::delay(50);
     }
 
     void play_cancel() {
         play(cancel, cancel_wav, cancel_wav_len);
+        event::delay(15);
+    }
+
+    void play_start_move() {
+        play(start_move, start_move_wav, start_move_wav_len);
+        event::delay(20);
+    }
+
+    void play_move() {
+        play(move, move_wav, move_wav_len);
+    }
+
+    void play_landing() {
+        play(landing, landing_wav, landing_wav_len);
+        event::delay(13);
+    }
+
+    void play_engaged_to_enemy() {
+        play(engaged_to_enemy, engaged_to_enemy_wav, engaged_to_enemy_wav_len);
+        event::delay(40);
+    }
+
+    void play_attack() {
+        play(attack, attack_wav, attack_wav_len);
+    }
+
+    void play_wizard_death() {
+        play(wizard_death, wizard_death_wav, wizard_death_wav_len);
+    }
+
+    void play_ranged_attack() {
+        play(ranged_attack, ranged_attack_wav, ranged_attack_wav_len);
+        event::delay(75);
+    }
+
+    void play_shot() {
+        play(shot, shot_wav, shot_wav_len);
+    }
+
+    void play_hit() {
+        Mix_HaltMusic();
+        play(hit, hit_wav, hit_wav_len);
+    }
+
+    void play_burn_beam() {
+        play(burn_beam, burn_beam_wav, burn_beam_wav_len);
+    }
+
+    void play_burn() {
+        Mix_HaltMusic();
+        play(burn, burn_wav, burn_wav_len);
+    }
+
+    void play_explosion() {
+        play(explosion, explosion_wav, explosion_wav_len);
     }
 }

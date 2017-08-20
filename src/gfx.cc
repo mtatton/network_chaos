@@ -160,7 +160,7 @@ namespace gfx {
 
     std::map<std::string, std::map<int, std::map<int, std::unique_ptr<TextTexture>>>> text_textures;
 
-    void draw_text(std::string text, const RGB &fg, const RGB &bg, const Coords& xy) {
+    void draw_text(std::string text, const Coords& xy, const RGB &fg, const RGB &bg) {
         for(int i = 0; i < text.size(); ++i) {
             const auto letter = text.substr(i, 1);
             const auto fg_index = fg.get_24_bit_index(); 
@@ -172,41 +172,81 @@ namespace gfx {
     }
 
     void draw_press_any_key(const RGB &fg, const RGB &bg) {
-        draw_text("         PRESS ANY KEY          ", fg, bg, {0, 22});
+        draw_text("         PRESS ANY KEY          ", {0, 22}, fg, bg);
     }
 
     void draw_press_keys_1_to_4(const RGB &fg, const RGB &bg) {
-        draw_text("       PRESS KEYS 1 TO 4        ", fg, bg, {0, 22});
+        draw_text("       PRESS KEYS 1 TO 4        ", {0, 22}, fg, bg);
+    }
+
+    void clear_status_line() {
+        const int text_height = 16 * 3;
+        sdl::clear(0, WINDOW_HEIGHT - text_height, WINDOW_WIDTH, text_height);
     }
 
     void draw_illusion_question() {
-        draw_text("ILLUSION? (PRESS Y OR N)        ", bright_white, black, {0, 22});
+        clear_status_line();
+        draw_text("ILLUSION? (PRESS Y OR N)", {0, 22}, bright_white);
     }
 
     void draw_spell_succeeds() {
-        draw_text("SPELL SUCCEEDS                  ", bright_white, black, {0, 22});
+        clear_status_line();
+        draw_text("SPELL SUCCEEDS", {0, 22}, bright_white);
     }
 
     void draw_spell_fails() {
-        draw_text("SPELL FAILS                     ", bright_white, black, {0, 22});
+        clear_status_line();
+        draw_text("SPELL FAILS", {0, 22}, bright_purple);
     }
 
     void draw_out_of_range(const RGB &rgb) {
-        draw_text("OUT OF RANGE                    ", rgb, black, {0, 22});
+        clear_status_line();
+        draw_text("OUT OF RANGE", {0, 22}, rgb);
+    }
+
+    void no_line_of_sight() {
+        clear_status_line();
+        draw_text("NO LINE OF SIGHT", {0, 22}, bright_cyan);
     }
 
     void draw_turn_text(const std::string& name) {
-        draw_text(name + "'S TURN", bright_yellow, black, {0, 22});
-        for(int x = name.size() + 7; x < 32; ++x)
-            draw_text(" ", bright_yellow, black, {x, 22});
+        clear_status_line();
+        draw_text(name + "'S TURN", {0, 22}, bright_yellow);
+    }
+
+    void draw_movement_range(const int& movement, const bool& flying) {
+        const std::string movement_text = std::to_string(movement);
+        clear_status_line();
+        draw_text("MOVEMENT RANGE=", {0, 22}, bright_green);
+        draw_text(movement_text , {15, 22}, bright_yellow);
+        if(flying)
+            draw_text(" (FLYING)", {static_cast<int>(movement_text.size()) + 15, 22}, bright_cyan);
+    }
+
+    void draw_movement_points_left(const int& movement) {
+        const std::string movement_text = std::to_string(movement);
+        clear_status_line();
+        draw_text("MOVEMENT POINTS LEFT=", {0, 22}, bright_green);
+        draw_text(movement_text , {21, 22}, bright_yellow);
+    }
+
+    void draw_ranged_combat(const int& range) {
+        const std::string range_text = std::to_string(range);
+        clear_status_line();
+        draw_text("RANGED COMBAT,RANGE=", {0, 22}, bright_green);
+        draw_text(range_text , {20, 22}, bright_yellow);
+    }
+
+    void draw_engaged_to_enemy() {
+        clear_status_line();
+        draw_text("ENGAGED TO ENEMY", {0, 22}, bright_yellow);
     }
 
     void alignment_text(const int &alignment, const Coords& xy) {
-        if (alignment < 0) {
-            draw_text("(CHAOS " + std::to_string(std::abs(alignment)) + ")", bright_purple, black, xy);
-        } else if (alignment > 0) {
-            draw_text("(LAW " + std::to_string(alignment) + ")", bright_cyan, black, xy);
-        }
+        if (alignment < 0)
+            draw_text("(CHAOS " + std::to_string(std::abs(alignment)) + ")", xy, bright_purple);
+        else if (alignment > 0)
+            draw_text("(LAW " + std::to_string(alignment) + ")", xy, bright_cyan);
     }
 
     const std::string corner_bytes = "ffffffffeaaff55bd087e42bd087ea0bd057e10bd427e10bdaaff557ffffffff";
@@ -260,8 +300,8 @@ namespace gfx {
         draw_press_any_key(black, bright_green);
     }
 
-    void draw_arena_border() {
-        draw_border(black, bright_blue);
+    void draw_arena_border(const RGB& rgb) {
+        draw_border(black, rgb);
     }
 
     const std::string spell_bytes = "ffff8001800187e18c3188118c0187e18031801188118c3187e180018001ffff";
@@ -1497,8 +1537,6 @@ namespace gfx {
     }
 
     void draw_wizard(const Wizard wizard, const Coords& xy, const int &frame_index) {
-        if(wizard.shadow_form && frame_index > (wizard.anim_timing / 2))
-            return;
         switch(wizard.last_change) {
         case Wizard::LastChange::none:
             draw_wizard(wizard.sprite_index, wizard.rgb, xy);
@@ -1517,6 +1555,9 @@ namespace gfx {
             break;
         case Wizard::LastChange::magic_wings:
             draw_magic_wings(frame_index, wizard.rgb, xy);
+            break;
+        case Wizard::LastChange::magic_bow:
+            draw_magic_bow(frame_index, wizard.rgb, xy);
             break;
         }
     }
@@ -1611,33 +1652,48 @@ namespace gfx {
     std::map<int, std::unique_ptr<SpriteTexture>> dragon_burn_textures;
     std::map<int, std::unique_ptr<SpriteTexture>> attack_textures;
 
-    void draw_effect_texture(const std::vector<std::string> &bytes, std::map<int, std::unique_ptr<SpriteTexture>> &textures, const RGB &rgb, const Coords& xy) {
+    void draw_effect_texture(const std::vector<std::string> &bytes, std::map<int, std::unique_ptr<SpriteTexture>> &textures, const RGB &rgb, const Coords& xy, const int& delay) {
         for(int sprite_index = 0; sprite_index < bytes.size(); ++sprite_index) {
             if(!textures[sprite_index])
                 textures[sprite_index] = std::unique_ptr<SpriteTexture>(new SpriteTexture(bytes[sprite_index], rgb, black));
             sdl::draw(*textures[sprite_index], 8 + xy.x * 16, 8 + xy.y * 16);
-            event::delay();
+            event::delay(delay);
+        }
+    }
+
+    void draw_effect_textures(const std::vector<std::string> &bytes, std::map<int, std::unique_ptr<SpriteTexture>> &textures, const RGB &rgb, const std::vector<Coords> coords, const int& delay) {
+        for(int sprite_index = 0; sprite_index < bytes.size(); ++sprite_index) {
+            if(!textures[sprite_index])
+                textures[sprite_index] = std::unique_ptr<SpriteTexture>(new SpriteTexture(bytes[sprite_index], rgb, black));
+            for(const auto& xy:coords) {
+                sdl::draw(*textures[sprite_index], 8 + xy.x * 16, 8 + xy.y * 16);
+                event::delay(delay);
+            }
         }
     }
 
     void draw_exploding_circle(const Coords& xy) {
-        draw_effect_texture(exploding_circle_bytes, exploding_circle_textures, *exploding_circle_rgb, xy);
+        draw_effect_texture(exploding_circle_bytes, exploding_circle_textures, *exploding_circle_rgb, xy, 2);
+    }
+
+    void draw_exploding_circles(const std::vector<Coords> coords) {
+        draw_effect_textures(exploding_circle_bytes, exploding_circle_textures, *exploding_circle_rgb, coords, 2);
     }
 
     void draw_twirl(const Coords& xy) {
-        draw_effect_texture(twirl_bytes, twirl_textures, *twirl_rgb, xy);
+        draw_effect_texture(twirl_bytes, twirl_textures, *twirl_rgb, xy, 2);
     }
 
     void draw_explosion(const Coords& xy) {
-        draw_effect_texture(explosion_bytes, explosion_textures, *explosion_rgb, xy);
+        draw_effect_texture(explosion_bytes, explosion_textures, *explosion_rgb, xy, 6);
     }
 
     void draw_dragon_burn(const Coords& xy) {
-        draw_effect_texture(dragon_burn_bytes, dragon_burn_textures, *dragon_burn_rgb, xy);
+        draw_effect_texture(dragon_burn_bytes, dragon_burn_textures, *dragon_burn_rgb, xy, 6);
     }
 
     void draw_attack(const Coords& xy) {
-        draw_effect_texture(attack_bytes, attack_textures, *attack_rgb, xy);
+        draw_effect_texture(attack_bytes, attack_textures, *attack_rgb, xy, 2);
     }
 
     const std::vector<std::vector<bool>> simple_beam_bitmask = {
@@ -1686,31 +1742,48 @@ namespace gfx {
         draw_beam_texture(burn_beam_bitmask, burn_beam_texures, rgb, xy);
     }
 
-    void draw_beam_animation(void (* draw)(const RGB &rgb, const Coords& xy), const RGB &rgb, const Coords& sxy, const Coords& dxy, const int& length, const int& step) {
+    void draw_burn_beam_animation(void (* draw)(const RGB &rgb, const Coords& xy), const RGB &rgb, const Coords& sxy, const Coords& dxy) {
+        const int length = 12;
         auto coords = sxy.get_middle_of_tile().line_to(dxy.get_middle_of_tile());
-        for(int i = length; i < coords.size(); i += length) {
-            for(int j = 0; j < length; j += step)
-                (draw)(rgb, coords[i - j]);
-            event::delay();
-            for(int j = 0; j < length; j += step)
-                (draw)(black, coords[i - j]);
+        for(int i = 0; i < coords.size() + length; i += 4) {
+            if(i < coords.size())
+                (draw)(rgb, coords[i]);
+            if(i >= length)
+                (draw)(black, coords[i - length]);
+            event::delay(4);
+        }
+    }
+
+    void draw_beam_animation(void (* draw)(const RGB &rgb, const Coords& xy), const RGB &rgb, const Coords& sxy, const Coords& dxy, const int& length) {
+        auto coords = sxy.get_middle_of_tile().line_to(dxy.get_middle_of_tile());
+        for(int i = 0; i < coords.size() + length; ++i) {
+            if(i < coords.size())
+                (draw)(rgb, coords[i]);
+            if(i >= length)
+                (draw)(black, coords[i - length]);
+            if(i % 5 == 0)
+                event::delay(1);
         }
     }
 
     void simple_beam_animation(const RGB &rgb, const Coords& sxy, const Coords& dxy, const int& length) {
-        draw_beam_animation(draw_simple_beam, rgb, sxy, dxy, length, 1);
+        audio::play_shot();
+        draw_beam_animation(draw_simple_beam, rgb, sxy, dxy, length);
+        audio::play_hit();
         draw_exploding_circle(dxy);
     }
 
     void spell_beam_animation(const Coords& sxy, const Coords& dxy) {
         audio::play_spell_beam();
-        draw_beam_animation(draw_spell_beam, bright_cyan, sxy, dxy, 8, 2);
+        draw_beam_animation(draw_spell_beam, bright_cyan, sxy, dxy, 20);
         audio::play_spell_end();
         draw_twirl(dxy);
     }
 
     void burn_beam_animation(const Coords& sxy, const Coords& dxy) {
-        draw_beam_animation(draw_burn_beam, bright_yellow, sxy, dxy, 15, 3);
+        audio::play_burn_beam();
+        draw_burn_beam_animation(draw_burn_beam, bright_yellow, sxy, dxy);
+        audio::play_burn();
         draw_dragon_burn(dxy);
     }
 
@@ -1948,31 +2021,31 @@ namespace gfx {
         int x = 4;
         for(auto& text:attributes) {
             if(text != attributes.front()) {
-                draw_text(",", bright_green, black, {x, 4});
+                draw_text(",", {x, 4}, bright_green);
                 x += 1;
             }
-            draw_text(text, bright_green, black, {x, 4});
+            draw_text(text, {x, 4}, bright_green);
             x += text.size();
         }
     }
 
     void draw_stats(const Unit& unit) {
         draw_info_border();
-        draw_text(unit.name, bright_yellow, black, {4, 2});
-        draw_text("COMBAT=", bright_cyan, black, {4, 6});
-        draw_text(std::to_string(unit.combat), bright_white, black, {11, 6});
-        draw_text("RANGED COMBAT=", bright_cyan, black, {4, 8});
-        draw_text(std::to_string(unit.ranged_combat), bright_white, black, {18, 8});
-        draw_text("RANGE=", bright_cyan, black, {21, 8});
-        draw_text(std::to_string(unit.range), bright_white, black, {27, 8});
-        draw_text("DEFENCE=", bright_cyan, black, {4, 10});
-        draw_text(std::to_string(unit.defence), bright_white, black, {12, 10});
-        draw_text("MOVEMENT ALLOWANCE=", bright_cyan, black, {4, 12});
-        draw_text(std::to_string(unit.movement), bright_white, black, {23, 12});
-        draw_text("MANOEUVRE RATING=", bright_cyan, black, {4, 14});
-        draw_text(std::to_string(unit.manoeuvre), bright_white, black, {21, 14});
-        draw_text("MAGIC RESISTANCE=", bright_cyan, black, {4, 16});
-        draw_text(std::to_string(unit.magical_resistance), bright_white, black, {21, 16});
+        draw_text(unit.name, {4, 2}, bright_yellow);
+        draw_text("COMBAT=", {4, 6}, bright_cyan);
+        draw_text(std::to_string(unit.combat), {11, 6}, bright_white);
+        draw_text("RANGED COMBAT=", {4, 8}, bright_cyan);
+        draw_text(std::to_string(unit.ranged_combat), {18, 8}, bright_white);
+        draw_text("RANGE=", {21, 8}, bright_cyan);
+        draw_text(std::to_string(unit.range), {27, 8}, bright_white);
+        draw_text("DEFENCE=", {4, 10}, bright_cyan);
+        draw_text(std::to_string(unit.defence), {12, 10}, bright_white);
+        draw_text("MOVEMENT ALLOWANCE=", {4, 12}, bright_cyan);
+        draw_text(std::to_string(unit.movement), {23, 12}, bright_white);
+        draw_text("MANOEUVRE RATING=", {4, 14}, bright_cyan);
+        draw_text(std::to_string(unit.manoeuvre), {21, 14}, bright_white);
+        draw_text("MAGIC RESISTANCE=", {4, 16}, bright_cyan);
+        draw_text(std::to_string(unit.magical_resistance), {21, 16}, bright_white);
     }
 
     void draw_stats(const Creation& creation, const std::string& wizard_name) {
@@ -2008,8 +2081,8 @@ namespace gfx {
         if (wizard.shadow_form)
             attributes.push_back("SHADOW");
         draw_attributes(attributes);
-        draw_text("SPELLS=" + std::to_string(wizard.number_of_spells), bright_yellow, black, {4, 18});
-        draw_text("ABILITY=" + std::to_string(wizard.ability), bright_yellow, black, {14, 18});
+        draw_text("SPELLS=" + std::to_string(wizard.number_of_spells), {4, 18}, bright_yellow);
+        draw_text("ABILITY=" + std::to_string(wizard.ability), {14, 18}, bright_yellow);
     }
 
     void draw_spell(const Spell& spell) {
@@ -2017,18 +2090,18 @@ namespace gfx {
         if (spell.type == Spell::creation) {
             auto creation = wizard::generate_creation_from_id(spell.id);
             draw_stats(creation);
-            draw_text("CASTING CHANCE=" + std::to_string(cast_chance_percentage) + "%", bright_cyan, black, {4, 18});
+            draw_text("CASTING CHANCE=" + std::to_string(cast_chance_percentage) + "%", {4, 18}, bright_cyan);
         } else {
             int cast_range = int(std::floor(spell.doubled_cast_range / 2));
             if(cast_range > 9)
                 cast_range = 20;
             draw_spell_border();
-            draw_text(spell.name, bright_yellow, black, {8, 5});
+            draw_text(spell.name, {8, 5}, bright_yellow);
             alignment_text(spell.alignment, {8, 7});
-            draw_text("CASTING CHANCE=", bright_green, black, {8, 11});
-            draw_text(std::to_string(cast_chance_percentage) + "%", bright_yellow, black, {23, 11});
-            draw_text("RANGE=", bright_green, black, {8, 15});
-            draw_text(std::to_string(cast_range), bright_yellow, black, {14, 15});
+            draw_text("CASTING CHANCE=", {8, 11}, bright_green);
+            draw_text(std::to_string(cast_chance_percentage) + "%", {23, 11}, bright_yellow);
+            draw_text("RANGE=", {8, 15}, bright_green);
+            draw_text(std::to_string(cast_range), {14, 15}, bright_yellow);
         }
         
     }
@@ -2037,7 +2110,7 @@ namespace gfx {
 
     void draw_spellbook(const Wizard& wizard) {
         sdl::clear();
-        draw_text(wizard.name + "'S SPELLS", bright_yellow, black, {0, 0});
+        draw_text(wizard.name + "'S SPELLS", {0, 0}, bright_yellow);
         for(int i = 0; i < wizard.number_of_spells; ++i) {
             int x = (i % 2) ? 17 : 0;
             int y = (std::floor(i / 2) + 1) * 2;
@@ -2052,116 +2125,152 @@ namespace gfx {
             }
             text += wizard.spellbook[i].name;
             int cast_chance = wizard.spellbook[i].world_cast_chance();
-            draw_text(text, *spell_rgbs[cast_chance], black, {x, y});
+            draw_text(text, {x, y}, *spell_rgbs[cast_chance]);
         }
-        draw_text("PRESS '0' TO RETURN TO MAIN MENU", bright_yellow, black, {0, 22});
+        draw_text("PRESS '0' TO RETURN TO MAIN MENU", {0, 22}, bright_yellow);
+    }
+
+    void draw_title_screen_network() {
+        draw_title_border();
+        draw_text("CHAOS -THE BATTLE OF WIZARDS", {2, 2}, bright_purple);
+        draw_text("By Julian Gollop", {8, 4}, bright_red);
+        draw_text("Host game?", {2, 9}, bright_yellow);
+        draw_text("(2 to 8 players)", {2, 11}, bright_green);
     }
 
     void draw_title_screen() {
         draw_title_border();
-        draw_text("CHAOS -THE BATTLE OF WIZARDS", bright_purple, black, {2, 2});
-        draw_text("By Julian Gollop", bright_red, black, {8, 4});
-        draw_text("Host game?", bright_yellow, black, {2, 9});
-        draw_text("(2 to 8 players)", bright_green, black, {2, 11});
+        draw_text("CHAOS -THE BATTLE OF WIZARDS", {2, 2}, bright_purple);
+        draw_text("By Julian Gollop", {8, 4}, bright_red);
+        draw_text("How many wizards?", {2, 9}, bright_yellow);
+        draw_text("(Press 2 to 8)", {2, 11}, bright_green);
     }
 
     void draw_enter_server() {
-        draw_text("Server?", bright_yellow, black, {2, 14});
-        draw_text("(28 letters max.)", bright_purple, black, {10, 14});
+        draw_text("Server?", {2, 14}, bright_yellow);
+        draw_text("(28 letters max.)", {10, 14}, bright_purple);
     }
 
     void draw_main_menu(const std::string& player_name, const int& world_alignment) {
         draw_menu_border();
-        draw_text(player_name, bright_yellow, black, {7, 5});
+        draw_text(player_name, {7, 5}, bright_yellow);
         if(world_alignment > 0) {
-            draw_text("(LAW ", bright_yellow, black, {7, 7});
+            draw_text("(LAW ", {7, 7}, bright_yellow);
             int num = std::floor(world_alignment / 4);
             for(int x = 0; x < num; ++x)
-                draw_text("^", bright_yellow, black, {12 + x, 7});
-            draw_text(")", bright_yellow, black, {12 + num, 7});
+                draw_text("^", {12 + x, 7}, bright_yellow);
+            draw_text(")", {12 + num, 7}, bright_yellow);
         }
         if(world_alignment < 0) {
-            draw_text("(CHAOS ", bright_cyan, black, {7, 7});
+            draw_text("(CHAOS ", {7, 7}, bright_cyan);
             int num = std::floor(std::abs(world_alignment) / 4);
             for(int x = 0; x < num; ++x)
-                draw_text("*", bright_cyan, black, {14 + x, 7});
-            draw_text(")", bright_cyan, black, {14 + num, 7});
+                draw_text("*", {14 + x, 7}, bright_cyan);
+            draw_text(")", {14 + num, 7}, bright_cyan);
         }
-        draw_text("1.EXAMINE SPELLS", bright_cyan, black, {7, 9});
-        draw_text("2.SELECT SPELL", bright_cyan, black, {7, 11});
-        draw_text("3.EXAMINE BOARD", bright_cyan, black, {7, 13});
-        draw_text("4.CONTINUE WITH GAME", bright_cyan, black, {7, 15});
+        draw_text("1.EXAMINE SPELLS", {7, 9}, bright_cyan);
+        draw_text("2.SELECT SPELL", {7, 11}, bright_cyan);
+        draw_text("3.EXAMINE BOARD", {7, 13}, bright_cyan);
+        draw_text("4.CONTINUE WITH GAME", {7, 15}, bright_cyan);
     }
 
-    void draw_player_entry_screen() {
+    void draw_player_entry_screen(const int& player_number) {
         draw_player_entry_border();
-        draw_text("PLAYER", bright_yellow, black, {2, 2});
-        draw_text("Enter name (12 letters max.)", bright_purple, black, {2, 4});
+        draw_text("PLAYER", {2, 2}, bright_yellow);
+        if(player_number)
+            draw_text(std::to_string(player_number), {9, 2}, bright_yellow);
+        draw_text("Enter name (12 letters max.)", {2, 4}, bright_purple);
     }
 
     void draw_computer_controlled_question() {
-        draw_text("Computer controlled?", bright_purple, black, {2, 9});
-        draw_text("NO", bright_yellow, black, {23, 9});
+        draw_text("Computer controlled?", {2, 9}, bright_purple);
+        draw_text("NO", {23, 9}, bright_yellow);
     }
 
     void draw_which_character_question() {
-        draw_text("Which character?", bright_purple, black, {2, 11});
+        draw_text("Which character?", {2, 11}, bright_purple);
         for(int i = 0; i < 8; ++i) {
-            draw_text(std::to_string(i + 1), bright_cyan, black, {2 + i * 3, 13});
+            draw_text(std::to_string(i + 1), {2 + i * 3, 13}, bright_cyan);
             draw_wizard_xy(i, bright_cyan, {24 + i * 24, 13 * 8});
         }
     }
 
     void draw_which_colour_question(const int& sprite_index) {
-        draw_text("Which colour?", bright_purple, black, {2, 16});
+        draw_text("Which colour?", {2, 16}, bright_purple);
         for(int i = 0; i < 8; ++i) {
-            draw_text(std::to_string(i + 1), bright_yellow, black, {2 + i * 3, 18});
+            draw_text(std::to_string(i + 1), {2 + i * 3, 18}, bright_yellow);
             draw_wizard_xy(sprite_index, wizard_rgbs[i], {24 + i * 24, 18 * 8});
         }
     }
 
     void draw_info_text(const Tile& tile) {
+        clear_status_line();
         int x = 0;
         if(tile.creation) {
-            draw_text(tile.creation->name, bright_cyan, black, {0, 22});
+            draw_text(tile.creation->name, {0, 22}, bright_cyan);
             x += tile.creation->name.size();
             if(tile.wizard) {
-                draw_text("#", bright_white, black, {x, 22});
+                draw_text("#", {x, 22}, bright_white);
                 x += 1;
             } else if(tile.corpse) {
-                draw_text("#", bright_purple, black, {x, 22});
+                draw_text("#", {x, 22}, bright_purple);
                 x += 1;
             }
-            draw_text("(" + tile.creation_owner->name + ")", bright_yellow, black, {x, 22});
+            draw_text("(" + tile.creation->owner->name + ")", {x, 22}, bright_yellow);
         } else if(tile.wizard) {
-            draw_text(tile.wizard->name, bright_cyan, black, {0, 22});
+            draw_text(tile.wizard->name, {0, 22}, bright_cyan);
             x += tile.wizard->name.size();
             if(tile.corpse) {
-                draw_text("#", bright_purple, black, {x, 22});
+                draw_text("#", {x, 22}, bright_purple);
                 x += 1;
             }
         } else if(tile.corpse) {
-            draw_text(tile.corpse->name, bright_cyan, black, {0, 22});
+            draw_text(tile.corpse->name, {0, 22}, bright_cyan);
             x += tile.corpse->name.size();
-            draw_text("(DEAD)", bright_green, black, {x + 1, 22});
+            draw_text("(DEAD)", {x + 1, 22}, bright_green);
         }
     }
 
     void cast_spell_text(const Wizard& wizard, const Spell& spell) {
         int x = 0;
-        draw_text(wizard.name, bright_yellow, black, {x, 22});
         audio::play_spell_text();
-        event::delay(5);
+        draw_text(wizard.name, {x, 22}, bright_yellow);
+        event::delay(10);
         x += wizard.name.size() + 1;
-        draw_text(spell.name, bright_green, black, {x, 22});
-        audio::play_spell_text();
-        event::delay(5);
+        draw_text(spell.name, {x, 22}, bright_green);
+        event::delay(10);
         x += spell.name.size() + 1;
         int cast_range = int(std::floor(spell.doubled_cast_range / 2));
         if(cast_range > 9)
             cast_range = 20;
-        draw_text(std::to_string(cast_range), bright_white, black, {x, 22});
-        audio::play_spell_text();
-        event::delay(5);
+        draw_text(std::to_string(cast_range), {x, 22}, bright_white);
+        event::delay(30);
+    }
+
+    void draw_wizard_death_xy(const int& sprite_index, const RGB& rgb, const Coords& xy) {
+        if(xy.x >= 8 && xy.x < 240 && xy.y >= 8 && xy.y < 160) {
+            draw_wizard_xy(sprite_index, rgb, xy);
+        }
+    }
+
+    void draw_wizard_death(const int& sprite_index, const Coords& wizard_xy) {
+        const std::vector<RGB> wizard_colour_death_cycle = {bright_white, bright_yellow, bright_cyan, bright_green, bright_purple, bright_red, bright_blue, bright_black};
+        audio::play_wizard_death();
+        event::delay(10);
+        for(auto& rgb:wizard_colour_death_cycle) {
+            Coords xy = {wizard_xy.x * 16 + 8, wizard_xy.y * 16 + 8};
+            for(int i = 0; i < 256; i += 8) {
+                draw_wizard_death_xy(sprite_index, rgb, {xy.x - i, xy.y});
+                draw_wizard_death_xy(sprite_index, rgb, {xy.x + i, xy.y});
+                draw_wizard_death_xy(sprite_index, rgb, {xy.x, xy.y - i});
+                draw_wizard_death_xy(sprite_index, rgb, {xy.x, xy.y + i});
+                draw_wizard_death_xy(sprite_index, rgb, {xy.x - i, xy.y - i});
+                draw_wizard_death_xy(sprite_index, rgb, {xy.x + i, xy.y - i});
+                draw_wizard_death_xy(sprite_index, rgb, {xy.x + i, xy.y + i});
+                draw_wizard_death_xy(sprite_index, rgb, {xy.x - i, xy.y + i});
+                if(i % 48 == 0)
+                    event::delay(2);
+            }
+        }
     }
 }

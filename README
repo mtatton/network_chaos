@@ -1,0 +1,5 @@
+Requires sdl2 and sdl2_mixer available from your favourite package manager.
+
+    make && ./chaos
+
+[Current state of development (YouTube)](https://youtu.be/YkTeMscbbpc)

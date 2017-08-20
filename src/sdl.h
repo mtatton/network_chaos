@@ -38,7 +38,9 @@ namespace sdl {
     extern SDL_Window window;
 
     void clear();
+    void present();
     void refresh();
     void draw(const Texture &texture, const int& x, const int& y, const int &sx, const int &sy, const int &width, const int &height);
     void draw(const Texture &texture, const int& x, const int& y);
+    void clear(const int& x, const int& y, const int& width, const int& height);
 }

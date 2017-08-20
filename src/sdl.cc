@@ -88,7 +88,9 @@ SDL_Window::SDL_Window() {
     SDL_ShowCursor(SDL_DISABLE);
     window = SDL_CreateWindow("Chaos: The Battle of Wizards", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_INPUT_FOCUS);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
+    SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     buffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
+    SDL_SetRenderTarget(renderer, buffer);
     Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 1, 4096);
 }
 
@@ -107,15 +109,18 @@ namespace sdl {
     SDL_Rect dst_rect;
 
     void clear() {
-        SDL_SetRenderTarget(window.renderer, window.buffer);
         SDL_RenderClear(window.renderer);
+    }
+
+    void present() {
+        SDL_RenderPresent(window.renderer);
     }
 
     void refresh() {
         SDL_SetRenderTarget(window.renderer, NULL);
-        SDL_RenderClear(window.renderer);
         SDL_RenderCopy(window.renderer, window.buffer, NULL, NULL);
         SDL_RenderPresent(window.renderer);
+        SDL_SetRenderTarget(window.renderer, window.buffer);
     }
 
     void draw(const Texture &texture, const int& x, const int& y, const int &sx, const int &sy, const int &width, const int &height) {
@@ -127,8 +132,7 @@ namespace sdl {
         dst_rect.y = y * 3;
         dst_rect.w = width * 3;
         dst_rect.h = height * 3;
-        SDL_SetRenderTarget(sdl::window.renderer, sdl::window.buffer);
-        SDL_RenderCopy(sdl::window.renderer, texture.texture, &src_rect, &dst_rect);
+        SDL_RenderCopy(window.renderer, texture.texture, &src_rect, &dst_rect);
     }
 
     void draw(const Texture &texture, const int& x, const int& y) {
@@ -136,7 +140,16 @@ namespace sdl {
         dst_rect.y = y * 3;
         dst_rect.w = texture.width * 3;
         dst_rect.h = texture.height * 3;
-        SDL_SetRenderTarget(sdl::window.renderer, sdl::window.buffer);
-        SDL_RenderCopy(sdl::window.renderer, texture.texture, NULL, &dst_rect);
+        SDL_RenderCopy(window.renderer, texture.texture, NULL, &dst_rect);
+    }
+
+    SDL_Rect rect;
+
+    void clear(const int& x, const int& y, const int& width, const int& height) {
+        rect.x = x;
+        rect.y = y;
+        rect.w = width;
+        rect.h = height;
+        SDL_RenderFillRect(window.renderer, &rect);
     }
 }

@@ -4,16 +4,47 @@
 
 const std::vector<RGB> wizard_rgbs = {bright_red, bright_purple, bright_green, bright_cyan, yellow, bright_yellow, white, bright_white};
 
+const int generate_random_int(const int& start, const int& end) {
+    std::random_device generator;
+    std::uniform_int_distribution<int> distribution(start, end);
+    return distribution(generator);
+}
+
+const int dice_roll() {
+    return generate_random_int(0, 9);
+}
+
+bool Unit::disengage(const Unit& opponent) {
+    return manoeuvre >= dice_roll() + 2;
+}
+
+int distance_calculation(const Coords& sxy, const Coords& dxy) {
+    auto diff = sxy.compute_diff_with(dxy);
+    return std::max(diff.x, diff.y) - std::min(diff.x, diff.y) + (std::min(diff.x, diff.y) * 1.5);
+}
+
+bool Unit::within_ranged_combat_range(const Coords& sxy, const Coords& dxy) {
+    return distance_calculation(sxy, dxy) <= range;
+}
+
+bool Creation::within_flying_range(const Coords& sxy, const Coords& dxy) {
+    return distance_calculation(sxy, dxy) <= (movement + 0.5);
+}
+
 int Spell::world_cast_chance() const {
     int world_alignment = arena::world_alignment;
     if ((world_alignment < 0 && alignment < 0) || (world_alignment > 0 && alignment > 0))
-        return std::min(int(std::floor(std::abs(world_alignment) / 4) + cast_chance), 9);
+        return std::min(static_cast<int>(std::floor(std::abs(world_alignment) / 4) + cast_chance), 9);
     return cast_chance;
 }
 
+bool Spell::cast() const {
+    return world_cast_chance() >= dice_roll();
+}
+
 bool Spell::within_range(const Coords& sxy, const Coords& dxy) const {
-    auto diff_xy = sxy.compute_diff_with(dxy);
-    int doubled_max = std::max(diff_xy.x, diff_xy.y) * 2;
+    auto diff = sxy.compute_diff_with(dxy);
+    int doubled_max = std::max(diff.x, diff.y) * 2;
     return doubled_max < doubled_cast_range;
 }
 
@@ -107,12 +138,6 @@ Creation::Creation(const std::string& name, const int& id, const int& combat, co
     this->shelter = shelter;
 }
 
-const int generate_random_int(const int& start, const int& end) {
-    std::random_device generator;
-    std::uniform_int_distribution<int> distribution(start, end);
-    return distribution(generator);
-}
-
 Wizard::Wizard(const std::string& name, const int& ability, const int& sprite_index, const RGB& rgb) {
     this->name = name;
     combat = 1 + generate_random_int(0, 4) + floor(float(ability) / 2);
@@ -169,6 +194,46 @@ bool Wizard::obtain_random_spell() {
     return false;
 }
 
+void Wizard::gain_magic_sword() {
+    magic_sword = true;
+    last_change = LastChange::magic_sword;
+}
+
+void Wizard::gain_magic_knife() {
+    magic_knife = true;
+    last_change = LastChange::magic_knife;
+}
+
+void Wizard::gain_magic_armour() {
+    magic_armour = true;
+    last_change = LastChange::magic_armour;
+}
+
+void Wizard::gain_magic_shield() {
+    magic_shield = true;
+    last_change = LastChange::magic_shield;
+}
+
+void Wizard::gain_magic_wings() {
+    magic_wings = true;
+    last_change = LastChange::magic_wings;
+}
+
+void Wizard::gain_magic_bow() {
+    ranged_combat = 3;
+    range = 6;
+    magic_bow = true;
+    last_change = LastChange::magic_bow;
+}
+
+void Wizard::gain_shadow_form() {
+    shadow_form = true;
+}
+
+bool Wizard::within_flying_range(const Coords& sxy, const Coords& dxy) {
+    return distance_calculation(sxy, dxy) <= (6 + 0.5);
+}
+
 namespace wizard {
     Creation generate_creation_from_id(const int& creation_id) {
         switch(creation_id) {
@@ -215,20 +280,52 @@ namespace wizard {
         throw 0;
     }
 
+    int get_defence_modifier(const Wizard& wizard) {
+        if(wizard.magic_armour)
+            return 4;
+        if(wizard.magic_shield)
+            return 2;
+        return 0;
+    }
+
+    int get_attack_modifier(const Wizard& wizard) {
+        if(wizard.magic_sword)
+            return 4;
+        if(wizard.magic_knife)
+            return 2;
+        return 0;
+    }
+
     bool attack(const Creation& attacker, const Creation& defender) {
-        return false;
+        return attacker.combat + dice_roll() >= defender.defence + dice_roll();
     }
 
     bool attack(const Creation& attacker, const Wizard& defender) {
-        return false;
+        return attacker.combat + dice_roll() >= defender.defence + dice_roll() + get_defence_modifier(defender);
     }
 
     bool attack(const Wizard& attacker, const Creation& defender) {
-        return false;
+        return attacker.combat + dice_roll() + get_attack_modifier(attacker) >= defender.defence + dice_roll();
     }
 
     bool attack(const Wizard& attacker, const Wizard& defender) {
-        return false;
+        return attacker.combat + dice_roll() >= defender.defence + dice_roll() + get_defence_modifier(defender);
+    }
+
+    bool ranged_attack(const Creation& attacker, const Creation& defender) {
+        return attacker.ranged_combat + dice_roll() >= defender.defence + dice_roll();
+    }
+
+    bool ranged_attack(const Creation& attacker, const Wizard& defender) {
+        return attacker.ranged_combat + dice_roll() >= defender.defence + dice_roll() + get_defence_modifier(defender);
+    }
+
+    bool ranged_attack(const Wizard& attacker, const Creation& defender) {
+        return attacker.ranged_combat + dice_roll() >= defender.defence + dice_roll();
+    }
+
+    bool ranged_attack(const Wizard& attacker, const Wizard& defender) {
+        return attacker.ranged_combat + dice_roll() >= defender.defence + dice_roll() + get_defence_modifier(defender);
     }
 
     bool magic_bolt_attack(const Creation& defender) {

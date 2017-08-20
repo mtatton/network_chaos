@@ -2,5 +2,7 @@
 #include "ui.h"
 
 namespace logic {
-    void start_game(const Server& server, const Player& player);
+    void add_player(const Player& player);
+    void start_game(const Server& server);
+    void start_game();
 }
