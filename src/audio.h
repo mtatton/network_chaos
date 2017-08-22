@@ -21,4 +21,5 @@ namespace audio {
     void play_burn();
     void play_explosion();
     void play_explosion();
+    void play_undead();
 }

@@ -19,6 +19,7 @@ struct Tile {
     void move_creation_to(Tile& tile);
     void turn_creation_to_corpse();
     bool has_enemy(const std::shared_ptr<Wizard>& opposing_wizard);
+    void raise_dead(const std::shared_ptr<Wizard>& wizard);
 };
 
 namespace arena {
@@ -36,4 +37,5 @@ namespace arena {
     void clear_turn_flags(const std::shared_ptr<Wizard>& wizard);
     void display_tile_over_player_units(const std::shared_ptr<Wizard>& wizard);
     std::vector<Tile *> obtain_enemies_on_neighbouring_tiles(const std::shared_ptr<Wizard>& wizard, const Coords& xy);
+    void clear();
 }

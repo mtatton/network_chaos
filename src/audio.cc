@@ -21,6 +21,7 @@
 #include "samples/burn_beam_wav.h"
 #include "samples/burn_wav.h"
 #include "samples/explosion_wav.h"
+#include "samples/undead_wav.h"
 
 class Audio {
 public:
@@ -64,6 +65,7 @@ namespace audio {
     std::unique_ptr<Audio> burn_beam;
     std::unique_ptr<Audio> burn;
     std::unique_ptr<Audio> explosion;
+    std::unique_ptr<Audio> undead;
 
     void play(std::unique_ptr<Audio>& audio, unsigned char * bytes, const int& length) {
         if(!audio)
@@ -160,5 +162,10 @@ namespace audio {
 
     void play_explosion() {
         play(explosion, explosion_wav, explosion_wav_len);
+    }
+
+    void play_undead() {
+        play(undead, undead_wav, undead_wav_len);
+        event::delay(50);
     }
 }

@@ -3,6 +3,7 @@
 #include "coords.h"
 #include <cstdlib>
 #include <string>
+#include <memory>
 
 struct Unit {
     std::string name;
@@ -15,8 +16,8 @@ struct Unit {
     int magical_resistance = 0;
     int anim_timing = 0;
     bool turn = false;
-    bool disengage(const Unit& opponent);
-    bool within_ranged_combat_range(const Coords& sxy, const Coords& dxy);
+    bool disengage(const Unit& opponent) const;
+    bool within_ranged_combat_range(const Coords& sxy, const Coords& dxy) const;
 };
 
 struct Spell {
@@ -64,7 +65,7 @@ struct Wizard : public Unit {
     void gain_magic_wings();
     void gain_magic_bow();
     void gain_shadow_form();
-    bool within_flying_range(const Coords& sxy, const Coords& dxy);
+    bool within_flying_range(const Coords& sxy, const Coords& dxy) const;
 };
 
 struct Creation : public Unit {
@@ -80,7 +81,8 @@ struct Creation : public Unit {
     bool shelter = false;
     bool illusion = false;
     std::shared_ptr<Wizard> owner;
-    bool within_flying_range(const Coords& sxy, const Coords& dxy);
+    bool within_flying_range(const Coords& sxy, const Coords& dxy) const;
+    bool subverted() const;
 };
 
 namespace wizard {

@@ -2,7 +2,6 @@
 #include "event.h"
 #include "arena.h"
 #include "audio.h"
-#include <iostream>
 
 struct Turn {
     std::shared_ptr<Wizard> wizard;
@@ -27,13 +26,18 @@ namespace logic {
             case CursorOption::select:
                 if(tile.creation && tile.creation->owner != wizard) {
                     gfx::spell_beam_animation(wizard_coords, ui::cursor);
-                    event::delay(15);
+                    arena::draw();
                     if(tile.creation->illusion) {
+                        event::delay(15);
                         audio::play_explosion();
                         gfx::draw_explosion(ui::cursor);
                         tile.remove_creation();
                         arena::draw();
+                        gfx::draw_spell_succeeds();
+                    } else {
+                        gfx::draw_spell_fails();
                     }
+                    event::wait_for_key(40);
                     return;
                 }
                 break;
@@ -63,6 +67,7 @@ namespace logic {
                     } else {
                         gfx::spell_beam_animation(wizard_coords, ui::cursor);
                         if(illusion || spell.cast()) {
+                            arena::world_alignment += spell.alignment;
                             creation = std::make_shared<Creation>(wizard::generate_creation_from_id(spell.id));
                             creation->owner = wizard;
                             creation->illusion = illusion;
@@ -80,9 +85,195 @@ namespace logic {
         }
     }
 
+    void alignment_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        if(spell.cast()) {
+            arena::world_alignment += spell.alignment;
+            gfx::draw_spell_succeeds();
+        } else {
+            gfx::draw_spell_fails();
+        }
+        event::wait_for_key(60);
+    }
+
+    void magic_shield_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        auto xy = arena::get_wizard_coords(wizard);
+        gfx::spell_beam_animation(xy, xy);
+        arena::draw();
+        if(spell.cast()) {
+            arena::world_alignment += spell.alignment;
+            wizard->gain_magic_shield();
+            arena::draw();
+            gfx::draw_spell_succeeds();
+        } else {
+            gfx::draw_spell_fails();
+        }
+        event::wait_for_key(60);
+    }
+
+    void magic_armour_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        auto xy = arena::get_wizard_coords(wizard);
+        gfx::spell_beam_animation(xy, xy);
+        arena::draw();
+        if(spell.cast()) {
+            arena::world_alignment += spell.alignment;
+            wizard->gain_magic_armour();
+            arena::draw();
+            gfx::draw_spell_succeeds();
+        } else {
+            gfx::draw_spell_fails();
+        }
+        event::wait_for_key(60);
+    }
+
+    void magic_sword_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        auto xy = arena::get_wizard_coords(wizard);
+        gfx::spell_beam_animation(xy, xy);
+        arena::draw();
+        if(spell.cast()) {
+            arena::world_alignment += spell.alignment;
+            wizard->gain_magic_sword();
+            arena::draw();
+            gfx::draw_spell_succeeds();
+        } else {
+            gfx::draw_spell_fails();
+        }
+        event::wait_for_key(60);
+    }
+
+    void magic_knife_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        auto xy = arena::get_wizard_coords(wizard);
+        gfx::spell_beam_animation(xy, xy);
+        arena::draw();
+        if(spell.cast()) {
+            arena::world_alignment += spell.alignment;
+            wizard->gain_magic_knife();
+            arena::draw();
+            gfx::draw_spell_succeeds();
+        } else {
+            gfx::draw_spell_fails();
+        }
+        event::wait_for_key(60);
+    }
+
+    void magic_bow_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        auto xy = arena::get_wizard_coords(wizard);
+        gfx::spell_beam_animation(xy, xy);
+        arena::draw();
+        if(spell.cast()) {
+            arena::world_alignment += spell.alignment;
+            wizard->gain_magic_bow();
+            arena::draw();
+            gfx::draw_spell_succeeds();
+        } else {
+            gfx::draw_spell_fails();
+        }
+        event::wait_for_key(60);
+    }
+
+    void magic_wings_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        auto xy = arena::get_wizard_coords(wizard);
+        gfx::spell_beam_animation(xy, xy);
+        arena::draw();
+        if(spell.cast()) {
+            arena::world_alignment += spell.alignment;
+            wizard->gain_magic_wings();
+            arena::draw();
+            gfx::draw_spell_succeeds();
+        } else {
+            gfx::draw_spell_fails();
+        }
+        event::wait_for_key(60);
+    }
+
+    void shadow_form_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        auto xy = arena::get_wizard_coords(wizard);
+        gfx::spell_beam_animation(xy, xy);
+        arena::draw();
+        if(spell.cast()) {
+            arena::world_alignment += spell.alignment;
+            wizard->gain_shadow_form();
+            arena::draw();
+            gfx::draw_spell_succeeds();
+        } else {
+            gfx::draw_spell_fails();
+        }
+        event::wait_for_key(60);
+    }
+
+    void subversion_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        auto wizard_coords = arena::get_wizard_coords(wizard);
+        std::shared_ptr<Creation> creation;
+        ui::cursor = wizard_coords;
+        while(true) {
+            auto option = ui::select_tile_for_spell();
+            if(option == CursorOption::cancel)
+                return;
+            if(option == CursorOption::select) {
+                auto& tile = arena::tiles[ui::cursor.x][ui::cursor.y];
+                if(tile.creation && tile.creation->owner != wizard && !tile.wizard) {
+                    if(!spell.within_range(wizard_coords, ui::cursor)) {
+                        gfx::draw_out_of_range(bright_cyan);
+                        event::delay(30);
+                    } else if(!arena::line_of_sight(wizard_coords, ui::cursor)) {
+                        gfx::no_line_of_sight();
+                        event::delay(30);
+                    } else {
+                        gfx::spell_beam_animation(wizard_coords, ui::cursor);
+                        if(!tile.creation->illusion && tile.creation->subverted()) {
+                            tile.creation->owner = wizard;
+                            gfx::draw_spell_succeeds();
+                        } else {
+                            gfx::draw_spell_fails();
+                        }
+                        event::wait_for_key(40);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    void raise_dead_spell(const std::shared_ptr<Wizard>& wizard, const Spell& spell) {
+        auto wizard_coords = arena::get_wizard_coords(wizard);
+        std::shared_ptr<Creation> creation;
+        ui::cursor = wizard_coords;
+        while(true) {
+            auto option = ui::select_tile_for_spell();
+            if(option == CursorOption::cancel)
+                return;
+            if(option == CursorOption::select) {
+                auto& tile = arena::tiles[ui::cursor.x][ui::cursor.y];
+                if(tile.corpse && !tile.creation && !tile.wizard) {
+                    if(!spell.within_range(wizard_coords, ui::cursor)) {
+                        gfx::draw_out_of_range(bright_cyan);
+                        event::delay(30);
+                    } else if(!arena::line_of_sight(wizard_coords, ui::cursor)) {
+                        gfx::no_line_of_sight();
+                        event::delay(30);
+                    } else {
+                        gfx::spell_beam_animation(wizard_coords, ui::cursor);
+                        if(spell.cast()) {
+                            tile.raise_dead(wizard);
+                            arena::draw();
+                            gfx::draw_spell_succeeds();
+                        } else {
+                            gfx::draw_spell_fails();
+                        }
+                        event::wait_for_key(40);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
     void spell_turn(const std::shared_ptr<Wizard>& wizard, const ChosenSpell& chosen_spell) {
         if(chosen_spell.spell_index != -1) {
             Spell spell = wizard->spellbook[chosen_spell.spell_index];
+            if(spell.type != Spell::disbelieve) {
+                wizard->spellbook.erase(wizard->spellbook.begin() + chosen_spell.spell_index);
+                wizard->number_of_spells -= 1;
+            }
             arena::draw();
             gfx::cast_spell_text(*wizard, spell);
             switch(spell.type) {
@@ -91,6 +282,36 @@ namespace logic {
                 break;
             case Spell::creation:
                 creation_spell(wizard, spell, chosen_spell.illusion);
+                break;
+            case Spell::magic_shield:
+                magic_shield_spell(wizard, spell);
+                break;
+            case Spell::magic_armour:
+                magic_armour_spell(wizard, spell);
+                break;
+            case Spell::magic_sword:
+                magic_sword_spell(wizard, spell);
+                break;
+            case Spell::magic_knife:
+                magic_knife_spell(wizard, spell);
+                break;
+            case Spell::magic_bow:
+                magic_bow_spell(wizard, spell);
+                break;
+            case Spell::magic_wings:
+                magic_wings_spell(wizard, spell);
+                break;
+            case Spell::change_alignment:
+                alignment_spell(wizard, spell);
+                break;
+            case Spell::shadow_form:
+                shadow_form_spell(wizard, spell);
+                break;
+            case Spell::subversion:
+                subversion_spell(wizard, spell);
+                break;
+            case Spell::raise_dead:
+                raise_dead_spell(wizard, spell);
                 break;
             default:
                 break;
@@ -143,9 +364,14 @@ namespace logic {
             if(option == CursorOption::move) {
                 auto dest = arena::tiles[xy.x][xy.y];
                 if(dest.creation && dest.creation->owner != creation->owner) {
-                    if(perform_attack(creation, xy))
-                        ui::cursor = xy;
-                    return;
+                    if(dest.creation->undead && !creation->undead) {
+                        gfx::undead_cannot_be_attacked();
+                        audio::play_undead();
+                    } else {
+                        if(perform_attack(creation, xy))
+                            ui::cursor = xy;
+                        return;
+                    }
                 } else if(dest.wizard && dest.wizard != creation->owner) {
                     if(perform_attack(creation, xy))
                         ui::cursor = xy;
@@ -189,10 +415,14 @@ namespace logic {
             if(option == CursorOption::move) {
                 auto dest = arena::tiles[xy.x][xy.y];
                 if(dest.creation && dest.creation->owner != wizard) {
-                    if(perform_attack(wizard, xy)) {
-                        ui::cursor = xy;
+                    if(dest.creation->undead && !(wizard->magic_knife | wizard->magic_sword)) {
+                        gfx::undead_cannot_be_attacked();
+                        audio::play_undead();
+                    } else {
+                        if(perform_attack(wizard, xy))
+                            ui::cursor = xy;
+                        return;
                     }
-                    return;
                 } else if(dest.wizard && dest.wizard != wizard) {
                     if(perform_attack(wizard, xy))
                         ui::cursor = xy;
@@ -232,8 +462,12 @@ namespace logic {
                 else
                     gfx::simple_beam_animation(bright_white, start, ui::cursor, 8);
                 if(dest.creation) {
-                    if(wizard::ranged_attack(*creation, *dest.creation))
+                    if(dest.creation->undead && !creation->undead) {
+                        gfx::undead_cannot_be_attacked();
+                        audio::play_undead();
+                    } else if(wizard::ranged_attack(*creation, *dest.creation)) {
                         arena::kill_creation(ui::cursor);
+                    }
                 } else if(dest.wizard) {
                     if(wizard::ranged_attack(*creation, *dest.wizard))
                         perform_wizard_death(dest.wizard);
@@ -381,7 +615,15 @@ namespace logic {
             }
             if(option == CursorOption::select) {
                 if(wizard->within_flying_range(start, ui::cursor)) {
-                    if(dest.creation && dest.creation->owner != wizard) {
+                    if(dest.creation && dest.creation->owner == wizard && dest.creation->mount) {
+                        dest.creation->turn = false;
+                        audio::play_landing();
+                        arena::tiles[start.x][start.y].move_wizard_to(dest);
+                        arena::draw();
+                        if(dest.creation->range)
+                            ranged_attack_turn(dest.creation);
+                        return;
+                    } else if(dest.creation && dest.creation->owner != wizard) {
                         audio::play_landing();
                         if(perform_attack(wizard, ui::cursor)) {
                             if(!dest.wizard) {
@@ -428,6 +670,8 @@ namespace logic {
                     if(dest.creation->owner != creation->owner) {
                         if(perform_attack(creation, xy) && !dest.wizard) {
                             arena::tiles[ui::cursor.x][ui::cursor.y].move_creation_to(arena::tiles[xy.x][xy.y]);
+                            ui::cursor = xy;
+                        } else {
                             xy = ui::cursor;
                         }
                         return; 
@@ -436,6 +680,8 @@ namespace logic {
                     if(dest.wizard != creation->owner) {
                         if(perform_attack(creation, xy)) {
                             arena::tiles[ui::cursor.x][ui::cursor.y].move_creation_to(arena::tiles[xy.x][xy.y]);
+                            ui::cursor = xy;
+                        } else {
                             xy = ui::cursor;
                         }
                         return; 
@@ -454,6 +700,7 @@ namespace logic {
                         return;
                 }
             }
+            xy = ui::cursor;
         }
     }
 
@@ -473,14 +720,27 @@ namespace logic {
                     if(dest.creation->owner != wizard) {
                         if(perform_attack(wizard, xy) && !dest.wizard) {
                             arena::tiles[ui::cursor.x][ui::cursor.y].move_wizard_to(arena::tiles[xy.x][xy.y]);
+                            ui::cursor = xy;
+                        } else {
                             xy = ui::cursor;
                         }
                         return; 
+                    } else if(dest.creation->mount) {
+                        dest.creation->turn = false;
+                        arena::tiles[ui::cursor.x][ui::cursor.y].move_wizard_to(arena::tiles[xy.x][xy.y]);
+                        arena::draw();
+                        audio::play_move();
+                        ui::cursor = xy;
+                        if(dest.creation->range)
+                            ranged_attack_turn(dest.creation);
+                        return;
                     }
                 } else if(dest.wizard) {
                     if(dest.wizard != wizard) {
                         if(perform_attack(wizard, xy)) {
                             arena::tiles[ui::cursor.x][ui::cursor.y].move_wizard_to(arena::tiles[xy.x][xy.y]);
+                            ui::cursor = xy;
+                        } else {
                             xy = ui::cursor;
                         }
                         return; 
@@ -499,6 +759,7 @@ namespace logic {
                         return;
                 }
             }
+            xy = ui::cursor;
         }
     }
 
@@ -545,10 +806,21 @@ namespace logic {
             if(option == CursorOption::ok)
                 break;
             if(option == CursorOption::select) {
-                if(tile.creation && tile.creation->turn)
-                    turn(tile.creation);
-                else if(tile.wizard && tile.wizard->turn)
+                if(tile.creation && tile.creation->turn) {
+                    if(tile.wizard) {
+                        gfx::unmount_wizard();
+                        if(event::get_yes_or_no()) {
+                            tile.creation->turn = false;
+                            turn(wizard);
+                        } else {
+                            turn(tile.creation);
+                        }
+                    } else {
+                        turn(tile.creation);
+                    }
+                } else if(tile.wizard && tile.wizard->turn) {
                     turn(wizard);
+                }
             }
         }
         audio::play_turn_over();
@@ -589,5 +861,12 @@ namespace logic {
             if(check_for_winning_condition())
                 break;
         }
+        std::vector<std::string> wizard_names;
+        for(auto& turn:turns)
+            if(turn.alive)
+                wizard_names.push_back(turn.wizard->name);
+        gfx::results(wizard_names);
+        arena::clear();
+        turns.erase(turns.begin(), turns.end());
     }
 }

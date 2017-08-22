@@ -12,6 +12,7 @@ namespace event {
     extern const Uint8 *keys;
 
     bool loop();
+    bool loop_textinput();
     int get_alphabet();
     bool get_yes_or_no();
     bool get_yes_or_no(const Coords& xy, const RGB& fg, const RGB& bg = black);

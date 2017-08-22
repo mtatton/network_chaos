@@ -85,8 +85,8 @@ std::vector<std::bitset<16>> Texture::get_bits_16(const std::string &bytes) {
 
 SDL_Window::SDL_Window() {
     SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
-    SDL_ShowCursor(SDL_DISABLE);
     window = SDL_CreateWindow("Chaos: The Battle of Wizards", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_SHOWN | SDL_WINDOW_INPUT_FOCUS);
+    SDL_ShowCursor(SDL_DISABLE);
     renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE);
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
     buffer = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, WINDOW_WIDTH, WINDOW_HEIGHT);
@@ -98,8 +98,8 @@ SDL_Window::~SDL_Window() {
     Mix_CloseAudio();
     SDL_DestroyTexture(buffer);
     SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
     SDL_ShowCursor(SDL_ENABLE);
+    SDL_DestroyWindow(window);
     SDL_Quit();
 }
 

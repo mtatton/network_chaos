@@ -86,6 +86,15 @@ bool Tile::has_enemy(const std::shared_ptr<Wizard>& opposing_wizard) {
     return false;
 }
 
+void Tile::raise_dead(const std::shared_ptr<Wizard>& wizard) {
+    if(corpse) {
+        creation = corpse;
+        corpse.reset();
+        creation->undead = true;
+        creation->owner = wizard;
+    }
+}
+
 namespace arena {
     int number_of_wizards = 0;
 
@@ -102,7 +111,6 @@ namespace arena {
 
     std::map<int, std::map<int, Tile>> tiles;
     int world_alignment = 0;
-
 
     void add(const std::shared_ptr<Wizard>& wizard) {
         if(number_of_wizards > 0) {
@@ -226,7 +234,6 @@ namespace arena {
             if(xy.x < 14 && tiles[xy.x + 1][xy.y - 1].has_enemy(wizard))
                 neighbouring_enemies.push_back(&tiles[xy.x + 1][xy.y - 1]);
         }
-        
         if(xy.x > 0 && tiles[xy.x - 1][xy.y].has_enemy(wizard))
             neighbouring_enemies.push_back(&tiles[xy.x - 1][xy.y]);
         if(xy.x < 14 && tiles[xy.x + 1][xy.y].has_enemy(wizard))
@@ -240,5 +247,18 @@ namespace arena {
                 neighbouring_enemies.push_back(&tiles[xy.x + 1][xy.y + 1]);
         }
         return neighbouring_enemies;
+    }
+
+    void clear() {
+        number_of_wizards = 0;
+        world_alignment = 0;
+        for(int y = 0; y < 10; ++y) {
+            for(int x = 0; x < 15; ++x) {
+                auto& tile = tiles[x][y];
+                tile.remove_creation();
+                tile.remove_wizard();
+                tile.reset_frame_count();
+            }
+        }
     }
 }

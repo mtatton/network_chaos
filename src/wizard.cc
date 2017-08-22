@@ -14,7 +14,7 @@ const int dice_roll() {
     return generate_random_int(0, 9);
 }
 
-bool Unit::disengage(const Unit& opponent) {
+bool Unit::disengage(const Unit& opponent) const {
     return manoeuvre >= dice_roll() + 2;
 }
 
@@ -23,12 +23,16 @@ int distance_calculation(const Coords& sxy, const Coords& dxy) {
     return std::max(diff.x, diff.y) - std::min(diff.x, diff.y) + (std::min(diff.x, diff.y) * 1.5);
 }
 
-bool Unit::within_ranged_combat_range(const Coords& sxy, const Coords& dxy) {
+bool Unit::within_ranged_combat_range(const Coords& sxy, const Coords& dxy) const {
     return distance_calculation(sxy, dxy) <= range;
 }
 
-bool Creation::within_flying_range(const Coords& sxy, const Coords& dxy) {
+bool Creation::within_flying_range(const Coords& sxy, const Coords& dxy) const {
     return distance_calculation(sxy, dxy) <= (movement + 0.5);
+}
+
+bool Creation::subverted() const {
+    return magical_resistance >= dice_roll();
 }
 
 int Spell::world_cast_chance() const {
@@ -110,11 +114,11 @@ const Spell raise_dead = {"RAISE DEAD", 115, 4, 9, -1, 18, Spell::raise_dead};
 const Spell turmoil = {"TURMOIL", 118, 9, 20, -1, 17, Spell::turmoil};
 
 // const Spellbook selection = {
-//     disbelieve, king_cobra, dire_wolf, goblin, crocodile, faun, lion, elf, orc, bear, gorilla, ogre, hydra, giant_rat, giant, horse, unicorn, centaur, pegasus, gryphon, manticore, bat, green_dragon, red_dragon, golden_dragon, harpy, eagle, vampire, ghost, spectre, wraith, skeleton, zombie, gooey_blob, magic_fire, magic_wood, shadow_wood, magic_castle, dark_citadel, wall, magic_bolt, magic_bolt, lightning, lightning, vengeance, decree, dark_power, justice, magic_shield, magic_armour, magic_sword, magic_knife, magic_bow, magic_wings, law_1, law_2, chaos_1, chaos_2, shadow_form, subversion, subversion, raise_dead, raise_dead
+    // disbelieve, king_cobra, dire_wolf, goblin, crocodile, faun, lion, elf, orc, bear, gorilla, ogre, hydra, giant_rat, giant, horse, unicorn, centaur, pegasus, gryphon, manticore, bat, green_dragon, red_dragon, golden_dragon, harpy, eagle, vampire, ghost, spectre, wraith, skeleton, zombie, gooey_blob, magic_fire, magic_wood, shadow_wood, magic_castle, dark_citadel, wall, magic_bolt, magic_bolt, lightning, lightning, vengeance, decree, dark_power, justice, magic_shield, magic_armour, magic_sword, magic_knife, magic_bow, magic_wings, law_1, law_2, chaos_1, chaos_2, shadow_form, subversion, subversion, raise_dead, raise_dead
 // };
 
 const Spellbook selection = {
-    disbelieve, king_cobra, dire_wolf, goblin, crocodile, faun, lion, elf, orc, bear, gorilla, ogre, hydra, giant_rat, giant, horse, unicorn, centaur, pegasus, gryphon, manticore, bat, green_dragon, red_dragon, golden_dragon, harpy, eagle, vampire, ghost, spectre, wraith, skeleton, zombie
+    disbelieve, king_cobra, dire_wolf, goblin, crocodile, faun, lion, elf, orc, bear, gorilla, ogre, hydra, giant_rat, giant, horse, unicorn, centaur, pegasus, gryphon, manticore, bat, green_dragon, red_dragon, golden_dragon, harpy, eagle, vampire, ghost, spectre, wraith, skeleton, zombie, magic_shield, magic_armour, magic_sword, magic_knife, magic_bow, magic_wings, law_1, law_2, chaos_1, chaos_2, shadow_form, subversion, subversion, raise_dead, raise_dead
 };
 
 Creation::Creation(const std::string& name, const int& id, const int& combat, const int& ranged_combat, const int& range, const int& defence, const int& movement, const int& manoeuvre, const int& magical_resistance, const int& casting_chance, const int& alignment, const int& anim_timing, const bool& mount, const bool& flying, const bool& undead, const bool& transparent, const bool& subvertable, const bool& shelter) {
@@ -230,7 +234,7 @@ void Wizard::gain_shadow_form() {
     shadow_form = true;
 }
 
-bool Wizard::within_flying_range(const Coords& sxy, const Coords& dxy) {
+bool Wizard::within_flying_range(const Coords& sxy, const Coords& dxy) const {
     return distance_calculation(sxy, dxy) <= (6 + 0.5);
 }
 

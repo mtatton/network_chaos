@@ -13,6 +13,8 @@ namespace gfx {
     void draw_spell_fails();
     void draw_out_of_range(const RGB &rgb);
     void no_line_of_sight();
+    void undead_cannot_be_attacked();
+    void unmount_wizard();
     void draw_turn_text(const std::string& name);
     void draw_movement_range(const int& movement, const bool& flying = false);
     void draw_movement_points_left(const int& movement);
@@ -62,4 +64,5 @@ namespace gfx {
     void cast_spell_text(const Wizard& wizard, const Spell& spell);
 
     void draw_wizard_death(const int& sprite_index, const Coords& wizard_xy);
+    void results(const std::vector<std::string>& wizard_names);
 }

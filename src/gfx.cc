@@ -86,7 +86,7 @@ namespace gfx {
         {"7", "fefe06060c0c18183030300000000000"},
         {"8", "387ceec6ee7ceec6ee7c380000000000"},
         {"9", "387ceec6ee7e3e06ce7c380000000000"},
-        {",", "00000000181800000018180000000000"},
+        {":", "00000000181800000018180000000000"},
         {";", "00000000181800000018180810000000"},
         {"<", "0000040c18306030180c040000000000"},
         {"=", "000000fefe0000fefe00000000000000"},
@@ -207,6 +207,16 @@ namespace gfx {
     void no_line_of_sight() {
         clear_status_line();
         draw_text("NO LINE OF SIGHT", {0, 22}, bright_cyan);
+    }
+
+    void undead_cannot_be_attacked() {
+        clear_status_line();
+        draw_text("UNDEAD-CANNOT BE ATTACKED", {0, 22}, bright_cyan);
+    }
+
+    void unmount_wizard() {
+        clear_status_line();
+        draw_text("DISMOUNT WIZARD? (Y OR N)", {0, 22}, bright_yellow);
     }
 
     void draw_turn_text(const std::string& name) {
@@ -1471,17 +1481,17 @@ namespace gfx {
     };
 
     const std::vector<std::string> magic_knife_bytes = {
-        "0000000000008180418021c013c00fc000c001c003c003c003e007f000000000",
-        "0000000020002180118011c00fc003c000c001c003c003c003e007f000000000",
-        "080008000800098009800dc007c001c000c001c003c003c003e007f000000000",
-        "0000000020002180118011c00fc003c000c001c003c003c003e007f000000000"
+        "0000000000000180018001c003e003d003d003d00fc003c003e007e000000000",
+        "0000000000000180018001c003e023d015d009d003c003c003e007e000000000",
+        "0000000000000180018041c023e01fd001d001d003c003c003e007e000000000",
+        "0000000000000180018001c003e023d015d009d003c003c003e007e000000000"
     };
 
     const std::vector<std::string> magic_armour_bytes = {
-        "0000000000008180418021c013c00fc000c001c003c003c003e007f000000000",
-        "0000000020002180118011c00fc003c000c001c003c003c003e007f000000000",
-        "080008000800098009800dc007c001c000c001c003c003c003e007f000000000",
-        "0000000020002180118011c00fc003c000c001c003c003c003e007f000000000"
+        "0180018005a00e7007e00bd009900a500bd007e0066006600c300c300c300000",
+        "0180018005a00e7007e00bd009900a500bd007e0066006600c300c300c300000",
+        "0180018005a00e7007e00bd009900a500bd007e0066006600c300c300c300000",
+        "0180018005a00e7007e00bd009900a500bd007e0066006600c300c300c300000"
     };
 
     const std::vector<std::string> magic_shield_bytes = {
@@ -1743,7 +1753,7 @@ namespace gfx {
     }
 
     void draw_burn_beam_animation(void (* draw)(const RGB &rgb, const Coords& xy), const RGB &rgb, const Coords& sxy, const Coords& dxy) {
-        const int length = 12;
+        const int length = 20;
         auto coords = sxy.get_middle_of_tile().line_to(dxy.get_middle_of_tile());
         for(int i = 0; i < coords.size() + length; i += 4) {
             if(i < coords.size())
@@ -2270,6 +2280,51 @@ namespace gfx {
                 draw_wizard_death_xy(sprite_index, rgb, {xy.x - i, xy.y + i});
                 if(i % 48 == 0)
                     event::delay(2);
+            }
+        }
+    }
+
+    void results(const std::vector<std::string>& wizard_names) {
+        const std::vector<RGB> colour_cycle = {bright_white, bright_cyan, bright_purple, bright_blue, bright_yellow, bright_green, bright_red};
+        int frame_count = 0;
+        int arena_colour_index = 0;
+        int text_colour_index = 3;
+        int box_colour_index = 6;
+        std::vector<int> winning_names_indexes = {4, 5, 6, 0, 1, 2, 3, 4};
+        while(!event::loop_textinput()) {
+            draw_arena_border(colour_cycle[arena_colour_index]);
+            if(wizard_names.size() == 1) {
+                draw_text("THE WINNER IS:", {9, 4}, colour_cycle[text_colour_index]);
+                draw_text("^^^^^^^^^^^^^^^^", {8, 8}, colour_cycle[box_colour_index]);
+                draw_text("^              ^", {8, 10}, colour_cycle[box_colour_index]);
+                draw_text("^              ^", {8, 12}, colour_cycle[box_colour_index]);
+                draw_text("^              ^", {8, 14}, colour_cycle[box_colour_index]);
+                draw_text("^^^^^^^^^^^^^^^^", {8, 16}, colour_cycle[box_colour_index]);
+                draw_text(wizard_names.front(), {10 + static_cast<int>((12 - wizard_names.front().size()) / 2), 12}, colour_cycle[winning_names_indexes.front()]);
+            } else {
+                draw_text("THE CONTEST IS DRAWN BETWEEN", {2, 2}, colour_cycle[text_colour_index]);
+                for(int i = 0; i < wizard_names.size(); ++i) {
+                    draw_text(wizard_names[i], {10, 5 + i * 2}, colour_cycle[winning_names_indexes[i]]);
+                }
+            }
+            if(frame_count == 15) {
+                frame_count = 0;
+                arena_colour_index += 1;
+                if(arena_colour_index == colour_cycle.size())
+                    arena_colour_index = 0;
+                text_colour_index += 1;
+                if(text_colour_index == colour_cycle.size())
+                    text_colour_index = 0;
+                box_colour_index += 1;
+                if(box_colour_index == colour_cycle.size())
+                    box_colour_index = 0;
+                for(int& i:winning_names_indexes) {
+                    i += 1;
+                    if(i == colour_cycle.size())
+                        i = 0;
+                }
+            } else {
+                frame_count += 1;
             }
         }
     }
